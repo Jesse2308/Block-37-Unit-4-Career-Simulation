@@ -3,7 +3,27 @@ const client = new pg.Client(
   process.env.DATABASE_URL || "postgres://localhost/acme_jcomApp_db"
 );
 
-const createUserTable = async () => { 
+const bcrypt = require("bcrypt");
+
+const register = async ({ username, password, email }) => {
+  const SQL = `
+    INSERT INTO users (username, password, email)
+    VALUES ($1, $2, $3)
+    RETURNING *;
+  `;
+  const hashedPassword = await bcrypt.hash(password, 10);
+  const response = await client.query(SQL, [username, hashedPassword, email]);
+  return response.rows[0];
+};
+const createUser = async ({ username, password }) => {
+  const SQL = `
+    INSERT INTO users(username, password) VALUES($1, $2) RETURNING *
+  `;
+  const hashedPassword = await bcrypt.hash(password, 5);
+  const response = await client.query(SQL, [username, hashedPassword]);
+  return response.rows[0];
+};
+const createUserTable = async () => {
   const SQL = `
     DROP TABLE IF EXISTS users CASCADE;
     CREATE TABLE Users (
@@ -90,7 +110,7 @@ const createOrderProductTable = async () => {
     "Controller",
     59.99,
     "High quality gaming controller.",
-    "url_to_image",
+    "https://shorturl.at/cpJWX",
     100
   );
   await addProduct(
@@ -98,7 +118,7 @@ const createOrderProductTable = async () => {
     "Controller",
     119.99,
     "Gaming controller with 2 paddles.",
-    "url_to_image",
+    "https://shorturl.at/bL359",
     100
   );
   await addProduct(
@@ -106,7 +126,7 @@ const createOrderProductTable = async () => {
     "Controller",
     219.99,
     "Gaming controller with 4 paddles.",
-    "url_to_image",
+    "https://shorturl.at/qrvE8",
     100
   );
   await addProduct(
@@ -157,18 +177,6 @@ const createOrderProductTable = async () => {
     "url_to_image",
     75
   );
-};
-
-const createUser = async ({ username, password }) => {
-  const SQL = `
-    INSERT INTO users(id, username, password) VALUES($1, $2, $3) RETURNING *
-  `;
-  const response = await client.query(SQL, [
-    uuid.v4(),
-    username,
-    await bcrypt.hash(password, 5),
-  ]);
-  return response.rows[0];
 };
 
 const authenticate = async ({ username, password }) => {
@@ -230,4 +238,5 @@ module.exports = {
   authenticate,
   findUserWithToken,
   fetchUsers,
+  register,
 };

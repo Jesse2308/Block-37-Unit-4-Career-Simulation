@@ -1,10 +1,10 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
-const Register = ({token, setToken}) => {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+const Register = ({ token, setToken }) => {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState(null);
 
   const navigate = useNavigate();
@@ -13,21 +13,22 @@ const Register = ({token, setToken}) => {
     e.preventDefault();
     setError(null);
     if (password !== confirmPassword) {
-      setError('Passwords do not match');
+      setError("Passwords do not match");
       return;
     }
     try {
-      const response = await fetch('http://localhost:3000/api/register', {
-        method: 'POST',
+      const response = await fetch("http://localhost:3000/api/register", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({ username, password }),
       });
       if (!response.ok) {
-        throw new Error('Failed to register');
+        throw new Error("Failed to register");
       }
-      navigate('/login');
+      console.log("successfully registered");
+      navigate("/login");
     } catch (error) {
       setError(error.message);
     }
@@ -40,15 +41,30 @@ const Register = ({token, setToken}) => {
       <form onSubmit={handleSubmit}>
         <div>
           <label>Username</label>
-          <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} required />
+          <input
+            type="text"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            required
+          />
         </div>
         <div>
           <label>Password</label>
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
         </div>
         <div>
           <label>Confirm Password</label>
-          <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required />
+          <input
+            type="password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            required
+          />
         </div>
         <button type="submit">Register</button>
       </form>

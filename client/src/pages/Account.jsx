@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect } from "react";
 
 const Account = () => {
   const [user, setUser] = useState(null);
@@ -11,10 +11,19 @@ const Account = () => {
       setIsLoading(true);
       setError(null);
       try {
-        const userResponse = await fetch('http://localhost:3000/api/user');
-        const purchasesResponse = await fetch('http://localhost:3000/api/purchases');
+        const token = localStorage.getItem("token");
+        const headers = {
+          Authorization: `Bearer ${token}`,
+        };
+        const userResponse = await fetch("http://localhost:3000/api/user", {
+          headers,
+        });
+        const purchasesResponse = await fetch(
+          "http://localhost:3000/api/purchases",
+          { headers }
+        );
         if (!userResponse.ok || !purchasesResponse.ok) {
-          throw new Error('Failed to fetch account data');
+          throw new Error("Failed to fetch account data");
         }
         const userData = await userResponse.json();
         const purchasesData = await purchasesResponse.json();
