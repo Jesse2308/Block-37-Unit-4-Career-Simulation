@@ -134,7 +134,7 @@ const createOrderProductTable = async () => {
     "PC",
     1200.0,
     "High performance gaming PC.",
-    "url_to_image",
+    "https://shorturl.at/ilrGV",
     50
   );
   await addProduct(
@@ -142,7 +142,7 @@ const createOrderProductTable = async () => {
     "PC",
     2200.0,
     "High performance gaming PC with 2TB SSD.",
-    "url_to_image",
+    "https://shorturl.at/uwNOX",
     50
   );
   await addProduct(
@@ -150,7 +150,7 @@ const createOrderProductTable = async () => {
     "PC",
     4200.0,
     "High performance gaming PC with 4TB SSD.",
-    "url_to_image",
+    "https://shorturl.at/cstU5",
     50
   );
   await addProduct(
@@ -158,7 +158,7 @@ const createOrderProductTable = async () => {
     "Monitor",
     200.0,
     "24 inch gaming monitor.",
-    "url_to_image",
+    "https://shorturl.at/iruU8",
     75
   );
   await addProduct(
@@ -166,7 +166,7 @@ const createOrderProductTable = async () => {
     "Monitor",
     400.0,
     "27 inch gaming monitor.",
-    "url_to_image",
+    "https://shorturl.at/lmEGX",
     75
   );
   await addProduct(
@@ -174,7 +174,7 @@ const createOrderProductTable = async () => {
     "Monitor",
     800.0,
     "32 inch gaming monitor.",
-    "url_to_image",
+    "https://tinyurl.com/24o53crt",
     75
   );
 };

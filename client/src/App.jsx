@@ -8,6 +8,7 @@ import {
   Account,
   Cart,
   Checkout,
+  ProductDetail,
 } from "./pages";
 
 function App() {
@@ -26,8 +27,8 @@ function App() {
     }
   }, []);
 
-  console.log("App token:", token); // Add this line
-  console.log("App username:", username); // Add this line
+  console.log("App token:", token);
+  console.log("App username:", username);
 
   const logout = () => {
     localStorage.removeItem("token");
@@ -63,6 +64,7 @@ function App() {
             />
           }
         />
+        <Route path="/products/:id" element={<ProductDetail />} />
         <Route path="/checkout" element={<Checkout />} />
       </Routes>
     </div>

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 
 const Product = ({ product, addToCart, buyNow }) => (
   <div key={product.id}>
@@ -84,14 +85,18 @@ const Store = ({ setCart }) => {
       ) : error ? (
         <p>{error}</p>
       ) : (
-    
         products.map((product) => (
-          <Product
-            key={product.id}
-            product={product}
-            addToCart={() => addToCart(product)}
-            buyNow={buyNow}
-          />
+          <div key={product.id}>
+            {/* <h3>{product.name}</h3> */}
+            <Product
+              product={product}
+              addToCart={() => addToCart(product)}
+              buyNow={buyNow}
+            />
+            <button>
+              <Link to={`/products/${product.id}`}>View Details</Link>
+            </button>
+          </div>
         ))
       )}
     </div>

@@ -146,6 +146,24 @@ app.get("/api/products", async (req, res, next) => {
   }
 });
 
+app.get("/api/products/:id", async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const SQL = `
+        SELECT * FROM products
+        WHERE id = $1;
+        `;
+    const response = await client.query(SQL, [id]);
+    if (response.rows.length > 0) {
+      res.send(response.rows[0]);
+    } else {
+      res.status(404).send({ message: "Product not found" });
+    }
+  } catch (error) {
+    next(error);
+  }
+});
+
 // This endpoint allows a user to add a product to their cart.
 // It takes a user_id, product_id, and quantity from the request body,
 // and inserts a new record into the cart table with these values.

@@ -5,4 +5,14 @@ import Register from "./Register";
 import Store from "./Store";
 import Cart from "./Cart";
 import Checkout from "./Checkout";
-export { Account, Login, NavBar, Register, Store, Cart, Checkout };
+import ProductDetail from "./ProductDetail";
+export {
+  Account,
+  Login,
+  NavBar,
+  Register,
+  Store,
+  Cart,
+  Checkout,
+  ProductDetail,
+};
