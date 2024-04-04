@@ -7,46 +7,54 @@ const Account = () => {
   const [username, setUsername] = useState(""); // Initialize to empty string
   const [email, setEmail] = useState(""); // Initialize to empty string
   const [purchases, setPurchases] = useState([]);
-
   useEffect(() => {
     const token = localStorage.getItem("token"); // Get the token from local storage
+
+    if (!token) {
+      setError("No token found");
+      return;
+    }
+
     const headers = {
       Authorization: `Bearer ${token}`, // Include the token in the Authorization header
     };
 
     // Fetch user data
-    fetch("http://localhost:3000/api/user", { headers })
-      .then((response) => {
-        console.log(response);
-        return response.json();
-      })
+    fetch("http://localhost:3000/api/me", { headers })
+      .then((response) => response.json())
       .then((data) => {
         setUser(data.user);
-        setUsername(data.user.username);
-        setEmail(data.user.email);
+        setUsername(data.user.username || ""); // Use empty string if username is null
+        setEmail(data.user.email || ""); // Use empty string if email is null
         setIsLoading(false);
+
+        // Fetch purchase history
+        fetch(`http://localhost:3000/api/orders/${data.user.id}`, { headers })
+          .then((response) => {
+            if (!response.ok) {
+              throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+          })
+          .then((data) => setPurchases(data))
+          .catch((error) => setError(error.message));
       })
       .catch((error) => {
         setError(error.message);
         setIsLoading(false);
       });
-
-    // Fetch purchase history
-    fetch("http://localhost:3000/api/orders", { headers })
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return response.json();
-      })
-      .then((data) => setPurchases(data))
-      .catch((error) => setError(error.message));
   }, []);
 
   const handleSubmit = (event) => {
     event.preventDefault();
 
     const token = localStorage.getItem("token"); // Get the token from local storage
+
+    if (!token) {
+      setError("No token found");
+      return;
+    }
+
     const headers = {
       Authorization: `Bearer ${token}`, // Include the token in the Authorization header
       "Content-Type": "application/json",
@@ -59,7 +67,9 @@ const Account = () => {
       body: JSON.stringify({ username, email }),
     })
       .then((response) => {
-        console.log(response);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
         return response.json();
       })
       .then((data) => setUser(data.user))
@@ -87,6 +97,7 @@ const Account = () => {
           </li>
         ))}
       </ul>
+      <h3>Update Account</h3>
       <form onSubmit={handleSubmit}>
         <label>
           Username:

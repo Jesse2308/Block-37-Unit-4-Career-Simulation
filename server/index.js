@@ -79,6 +79,25 @@ app.put("/api/user", async (req, res, next) => {
     next(error);
   }
 });
+
+app.get("/api/me", async (req, res, next) => {
+  try {
+    const token = req.headers.authorization.split(" ")[1];
+    const payload = jwt.verify(token, "your_secret_key");
+    const SQL = `
+        SELECT * FROM users WHERE id = $1;
+        `;
+    const response = await client.query(SQL, [payload.userId]);
+    if (response.rows.length > 0) {
+      const user = response.rows[0];
+      res.send({ success: true, user });
+    } else {
+      res.status(404).send({ success: false, message: "User not found" });
+    }
+  } catch (error) {
+    next(error);
+  }
+});
 // This endpoint handles user login.
 // It takes a username and password from the request body,
 // finds the user with the given username in the database,
