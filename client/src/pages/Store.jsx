@@ -78,26 +78,29 @@ const Store = ({ setCart }) => {
   }, []);
 
   return (
-    <div>
-      <button onClick={viewCart}>View Cart</button>
+    <div className="centered-div">
+      <button id="view-cart-button" onClick={viewCart}>
+        View Cart
+      </button>
       {isLoading ? (
         <p>Loading...</p>
       ) : error ? (
         <p>{error}</p>
       ) : (
-        products.map((product) => (
-          <div key={product.id}>
-            {/* <h3>{product.name}</h3> */}
-            <Product
-              product={product}
-              addToCart={() => addToCart(product)}
-              buyNow={buyNow}
-            />
-            <button>
-              <Link to={`/products/${product.id}`}>View Details</Link>
-            </button>
-          </div>
-        ))
+        <div className="item-container">
+          {products.map((product) => (
+            <div className="item" key={product.id}>
+              <Product
+                product={product}
+                addToCart={() => addToCart(product)}
+                buyNow={buyNow}
+              />
+              <button>
+                <Link to={`/products/${product.id}`}>View Details</Link>
+              </button>
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );
