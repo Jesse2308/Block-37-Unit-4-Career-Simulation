@@ -1,4 +1,16 @@
+// Load environment variables
 require("dotenv").config();
+
+// Import dependencies
+const express = require("express");
+const cors = require("cors");
+const jwt = require("jsonwebtoken");
+const bcrypt = require("bcrypt");
+const crypto = require("crypto");
+const nodemailer = require("nodemailer");
+const path = require("path");
+
+// Import database functions
 const {
   client,
   createUserTable,
@@ -9,17 +21,14 @@ const {
   addDetailsColumn,
 } = require("./db");
 
-const express = require("express");
-const cors = require("cors");
+// Create Express app
 const app = express();
-app.use(express.json());
-const jwt = require("jsonwebtoken");
-const bcrypt = require("bcrypt");
-const crypto = require("crypto");
-const nodemailer = require("nodemailer");
-
-const path = require("path");
+module.exports = app;
+// Middleware
 app.use(cors());
+app.use(express.json());
+
+// Static
 app.get("/", (req, res) =>
   res.sendFile(path.join(__dirname, "../client/dist/index.html"))
 );
@@ -28,6 +37,18 @@ app.use(
   express.static(path.join(__dirname, "../client/dist/assets"))
 );
 
+// Email transporter
+const transporter = nodemailer.createTransport({
+  host: "smtp.gmail.com",
+  port: 587,
+  secure: false, // true for 465, false for other ports
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS, // your Gmail password
+  },
+});
+
+// User routes
 app.get("/api/user", async (req, res, next) => {
   try {
     // Extract the token from the Authorization header
@@ -51,16 +72,6 @@ app.get("/api/user", async (req, res, next) => {
   } catch (error) {
     next(error);
   }
-});
-
-const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 587,
-  secure: false, // true for 465, false for other ports
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS, // your Gmail password
-  },
 });
 
 app.put("/api/user", async (req, res, next) => {
@@ -112,12 +123,7 @@ app.get("/api/me", async (req, res, next) => {
     next(error);
   }
 });
-// This endpoint handles user login.
-// It takes an email and password from the request body,
-// finds the user with the given email in the database,
-// and checks if the given password matches the user's password.
-// If the password is correct, it generates a JWT and sends it in the response.
-// If the password is incorrect or the user is not found, it sends an error message.
+
 app.post("/api/login", async (req, res, next) => {
   try {
     const { email, password } = req.body;
@@ -149,10 +155,7 @@ app.post("/api/login", async (req, res, next) => {
     next(error);
   }
 });
-// This endpoint handles user registration.
-// It takes an email and password from the request body,
-// hashes the password, and inserts a new user into the database with the given email and hashed password.
-// It then sends the new user in the response.
+
 app.post("/api/register", async (req, res, next) => {
   try {
     console.log("Register endpoint hit");
@@ -197,6 +200,7 @@ app.post("/api/register", async (req, res, next) => {
     next(error);
   }
 });
+
 app.get("/api/verify-email", async (req, res, next) => {
   try {
     const { token } = req.query;
@@ -218,9 +222,7 @@ app.get("/api/verify-email", async (req, res, next) => {
   }
 });
 
-// This endpoint fetches all products.
-// It sends a query to the database to select all products,
-// and then sends the products in the response.
+// Product routes
 app.get("/api/products", async (req, res, next) => {
   try {
     const response = await client.query("SELECT * FROM products");
@@ -239,12 +241,12 @@ app.post("/api/products", async (req, res, next) => {
     const payload = jwt.verify(token, process.env.JWT_SECRET);
 
     // Extract the product data from the request body
-    const { name, price, details, quantity } = req.body;
+    const { name, price, details, quantity, category } = req.body;
 
     // Insert the new product into the database
     const SQL = `
-      INSERT INTO products (name, price, details, quantity, seller_id)
-      VALUES ($1, $2, $3, $4, $5)
+      INSERT INTO products (name, price, details, quantity, seller_id, category)
+      VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING *;
     `;
     const response = await client.query(SQL, [
@@ -253,6 +255,7 @@ app.post("/api/products", async (req, res, next) => {
       details,
       quantity,
       payload.userId,
+      category,
     ]);
 
     if (response.rows.length > 0) {
@@ -286,9 +289,36 @@ app.get("/api/products/:id", async (req, res, next) => {
   }
 });
 
-// This endpoint allows a user to add a product to their cart.
-// It takes a user_id, product_id, and quantity from the request body,
-// and inserts a new record into the cart table with these values.
+app.get("/api/products/user/:userId", async (req, res, next) => {
+  try {
+    const { userId } = req.params;
+    const SQL = `
+        SELECT * FROM products
+        WHERE seller_id = $1;
+        `;
+    const response = await client.query(SQL, [userId]);
+    if (response.rows.length > 0) {
+      res.send(response.rows);
+    } else {
+      res.status(404).send({ message: "No products found for this user" });
+    }
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.delete("/api/products/:productId", async (req, res, next) => {
+  try {
+    const { productId } = req.params;
+    const { sellerId } = req.body; // You'll need to send the sellerId in the request body
+    await deleteProduct(productId, sellerId);
+    res.sendStatus(204);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Cart routes
 app.post("/api/cart", async (req, res, next) => {
   try {
     const { user_id, product_id, quantity } = req.body;
@@ -303,10 +333,7 @@ app.post("/api/cart", async (req, res, next) => {
     next(error);
   }
 });
-// This endpoint allows a user to view the products in their cart.
-// It takes a user_id from the request parameters, and fetches all records
-// from the cart table where the user_id matches the provided user_id.
-// It joins the cart and products tables to get the details of the products in the cart.
+
 app.get("/api/cart/:user_id", async (req, res, next) => {
   try {
     const { user_id } = req.params;
@@ -322,29 +349,8 @@ app.get("/api/cart/:user_id", async (req, res, next) => {
     next(error);
   }
 });
-// This endpoint allows a user to remove a product from their cart.
-// It takes a user_id and product_id from the request parameters,
-// and deletes the record from the cart table where the user_id and product_id
-// match the provided user_id and product_id.
-app.delete("/api/cart/:user_id/:product_id", async (req, res, next) => {
-  try {
-    const { user_id, product_id } = req.params;
-    const SQL = `
-        DELETE FROM cart
-        WHERE user_id = $1
-        AND product_id = $2
-        RETURNING *;
-        `;
-    const response = await client.query(SQL, [user_id, product_id]);
-    res.send(response.rows[0]);
-  } catch (error) {
-    next(error);
-  }
-});
-// This endpoint creates a new order.
-// It takes a user_id and total from the request body,
-// and inserts a new record into the orders table with these values.
-// The new order is then returned in the response.
+
+// Order routes
 app.post("/api/order", async (req, res, next) => {
   try {
     const { user_id, total } = req.body;
@@ -360,9 +366,6 @@ app.post("/api/order", async (req, res, next) => {
   }
 });
 
-// This endpoint fetches all orders for a specific user.
-// It takes a user_id from the request parameters, and fetches all records
-// from the orders table where the user_id matches the provided user_id.
 app.get("/api/orders/:user_id", async (req, res, next) => {
   try {
     const { user_id } = req.params;
@@ -377,10 +380,6 @@ app.get("/api/orders/:user_id", async (req, res, next) => {
   }
 });
 
-// This endpoint adds a product to an order.
-// It takes an order_id, product_id, and quantity from the request body,
-// and inserts a new record into the order_products table with these values.
-// The new order_product is then returned in the response.
 app.post("/api/order_product", async (req, res, next) => {
   try {
     const { order_id, product_id, quantity } = req.body;
@@ -406,10 +405,13 @@ app.post("/api/order_product", async (req, res, next) => {
 //   }
 // });
 
+// Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack); // Log error stack trace to the console
   res.status(500).send({ error: err.message }); // Send a 500 response with the error message
 });
+
+// Initialize the app
 const init = async () => {
   const PORT = process.env.PORT || 3000;
   await client.connect();
@@ -425,4 +427,5 @@ const init = async () => {
 
   app.listen(PORT, () => console.log(`Listening on port ${PORT}`));
 };
+
 init();

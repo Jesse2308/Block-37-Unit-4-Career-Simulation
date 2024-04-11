@@ -1,15 +1,19 @@
+// Dependencies
 const pg = require("pg");
-const client = new pg.Client(
-  process.env.DATABASE_URL || "postgres://localhost/acme_jcomApp_db"
-);
-
 const bcrypt = require("bcrypt");
 const crypto = require("crypto");
 const nodemailer = require("nodemailer");
 const jwt = require("jsonwebtoken");
 
+// Constants
 const JWT_SECRET = process.env.JWT_SECRET;
 
+// Database client
+const client = new pg.Client(
+  process.env.DATABASE_URL || "postgres://localhost/acme_jcomApp_db"
+);
+
+// User related functions
 const register = async ({ email, password }) => {
   // Check if a user with the given email already exists
   const checkSQL = `
@@ -57,12 +61,59 @@ const register = async ({ email, password }) => {
 };
 const createUser = async ({ email, password }) => {
   const SQL = `
-    INSERT INTO users(email, password) VALUES($1, $2) RETURNING *
-  `;
+INSERT INTO users(email, password) VALUES($1, $2) RETURNING *
+`;
   const hashedPassword = await bcrypt.hash(password, 5);
   const response = await client.query(SQL, [email, hashedPassword]);
   return response.rows[0];
 };
+const authenticate = async ({ email, password }) => {
+  const SQL = `
+    SELECT id, email, password FROM users WHERE email=$1;
+  `;
+  const response = await client.query(SQL, [email]);
+  if (
+    !response.rows.length ||
+    (await bcrypt.compare(password, response.rows[0].password)) === false
+  ) {
+    const error = Error("not authorized");
+    error.status = 401;
+    throw error;
+  }
+  const token = await jwt.sign({ id: response.rows[0].id }, JWT_SECRET);
+  return { token };
+};
+
+const findUserWithToken = async (token) => {
+  let id;
+  try {
+    const payload = await jwt.verify(token, JWT_SECRET);
+    id = payload.id;
+  } catch (ex) {
+    const error = Error("not authorized");
+    error.status = 401;
+    throw error;
+  }
+  const SQL = `
+    SELECT id, email FROM users WHERE id=$1;
+  `;
+  const response = await client.query(SQL, [id]);
+  if (!response.rows.length) {
+    const error = Error("not authorized");
+    error.status = 401;
+    throw error;
+  }
+  return response.rows[0];
+};
+const fetchUsers = async () => {
+  const SQL = `
+    SELECT id, email FROM users;
+  `;
+  const response = await client.query(SQL);
+  return response.rows;
+};
+
+// Table creation functions
 const createUserTable = async () => {
   const SQL = `
     CREATE TABLE IF NOT EXISTS users (
@@ -111,27 +162,6 @@ const createProductTable = async () => {
   await client.query(SQL);
 };
 
-const addDetailsColumn = async () => {
-  const SQL = `
-    ALTER TABLE products
-    ADD COLUMN IF NOT EXISTS details TEXT;
-  `;
-  await client.query(SQL);
-};
-
-async function addQuantityColumn() {
-  try {
-    await client.query(
-      "ALTER TABLE products ADD COLUMN IF NOT EXISTS quantity INTEGER DEFAULT 0 NOT NULL;"
-    );
-    console.log("Quantity column added successfully.");
-  } catch (error) {
-    console.error("Error adding quantity column:", error);
-  }
-}
-
-addQuantityColumn();
-
 const createCartTable = async () => {
   const SQL = `
     DROP TABLE IF EXISTS cart CASCADE;
@@ -160,49 +190,6 @@ const createOrderTable = async () => {
     `;
   await client.query(SQL);
 };
-
-const addProduct = async (name, category, price, description, image, stock) => {
-  // Check if a product with the same name already exists
-  const checkSQL = `
-    SELECT * FROM Products WHERE name = $1;
-  `;
-  const checkResponse = await client.query(checkSQL, [name]);
-  if (checkResponse.rows.length > 0) {
-    console.log(`Product with name ${name} already exists.`);
-    return;
-  }
-
-  // If not, insert the new product
-  const SQL = `
-    INSERT INTO Products (name, category, price, description, image, stock)
-    VALUES ($1, $2, $3, $4, $5, $6);
-  `;
-  await client.query(SQL, [name, category, price, description, image, stock]);
-};
-
-const deleteDuplicates = async () => {
-  const query = `
-    DELETE FROM products
-    WHERE id IN (
-      SELECT id
-      FROM (
-        SELECT id,
-               ROW_NUMBER() OVER( PARTITION BY name, details ORDER BY id ) AS row_num
-         FROM products
-      ) t
-      WHERE t.row_num > 1
-    );
-  `;
-
-  try {
-    const res = await client.query(query);
-    console.log("Duplicates deleted successfully");
-  } catch (err) {
-    console.error("Error deleting duplicates:", err);
-  }
-};
-
-deleteDuplicates();
 
 const createOrderProductTable = async () => {
   const SQL = `
@@ -275,7 +262,7 @@ const createOrderProductTable = async () => {
     75
   );
   await addProduct(
-    "Gaming Monitor",
+    "27 inch Gaming Monitor",
     "Monitor",
     400.0,
     "27 inch gaming monitor.",
@@ -283,7 +270,7 @@ const createOrderProductTable = async () => {
     75
   );
   await addProduct(
-    "Gaming Monitor",
+    "32 inch Gaming Monitor",
     "Monitor",
     800.0,
     "32 inch gaming monitor.",
@@ -292,53 +279,95 @@ const createOrderProductTable = async () => {
   );
 };
 
-const authenticate = async ({ email, password }) => {
-  const SQL = `
-    SELECT id, email, password FROM users WHERE email=$1;
+const addProduct = async (name, category, price, description, image, stock) => {
+  // Check if a product with the same name already exists
+  const checkSQL = `
+    SELECT * FROM products WHERE name = $1;
   `;
-  const response = await client.query(SQL, [email]);
-  if (
-    !response.rows.length ||
-    (await bcrypt.compare(password, response.rows[0].password)) === false
-  ) {
-    const error = Error("not authorized");
-    error.status = 401;
-    throw error;
+  const checkResponse = await client.query(checkSQL, [name]);
+  if (checkResponse.rows.length > 0) {
+    console.log(`Product with name ${name} already exists.`);
+    return;
   }
-  const token = await jwt.sign({ id: response.rows[0].id }, JWT_SECRET);
-  return { token };
+
+  // If not, insert the new product
+  const SQL = `
+    INSERT INTO Products (name, category, price, description, image, stock)
+    VALUES ($1, $2, $3, $4, $5, $6);
+  `;
+  await client.query(SQL, [name, category, price, description, image, stock]);
+
+  // Log that the product was added
+  console.log(`Added product: ${name}`);
 };
 
-const findUserWithToken = async (token) => {
-  let id;
+const deleteProduct = async (productId, sellerId) => {
+  const SQL = `
+    DELETE FROM products
+    WHERE id = $1 AND seller_id = $2;
+  `;
+  await client.query(SQL, [productId, sellerId]);
+};
+
+const deleteDuplicates = async () => {
+  const query = `
+    DELETE FROM products
+    WHERE id IN (
+      SELECT id
+      FROM (
+        SELECT id,
+               ROW_NUMBER() OVER( PARTITION BY name, details ORDER BY id ) AS row_num
+         FROM products
+      ) t
+      WHERE t.row_num > 1
+    );
+  `;
+
   try {
-    const payload = await jwt.verify(token, JWT_SECRET);
-    id = payload.id;
-  } catch (ex) {
-    const error = Error("not authorized");
-    error.status = 401;
-    throw error;
+    const res = await client.query(query);
+    console.log("Duplicates deleted successfully");
+  } catch (err) {
+    console.error("Error deleting duplicates:", err);
   }
-  const SQL = `
-    SELECT id, email FROM users WHERE id=$1;
-  `;
-  const response = await client.query(SQL, [id]);
-  if (!response.rows.length) {
-    const error = Error("not authorized");
-    error.status = 401;
-    throw error;
-  }
-  return response.rows[0];
 };
 
-const fetchUsers = async () => {
+// Column addition functions
+const addDetailsColumn = async () => {
   const SQL = `
-    SELECT id, email FROM users;
+    ALTER TABLE products
+    ADD COLUMN IF NOT EXISTS details TEXT;
   `;
-  const response = await client.query(SQL);
-  return response.rows;
+  await client.query(SQL);
+};
+async function addQuantityColumn() {
+  try {
+    await client.query(
+      "ALTER TABLE products ADD COLUMN IF NOT EXISTS quantity INTEGER DEFAULT 0 NOT NULL;"
+    );
+    console.log("Quantity column added successfully.");
+  } catch (error) {
+    console.error("Error adding quantity column:", error);
+  }
+}
+
+const addSellerIdColumn = async () => {
+  const SQL = `
+    ALTER TABLE products
+    ADD COLUMN IF NOT EXISTS seller_id INTEGER REFERENCES users(id);
+  `;
+  await client.query(SQL);
 };
 
+// Execute column addition functions
+addQuantityColumn();
+addSellerIdColumn();
+deleteDuplicates();
+
+createOrderProductTable().catch((err) =>
+  console.error("Database connection error", err.stack)
+);
+
+// Exports
 module.exports = {
   client,
   createUserTable,
@@ -355,4 +384,5 @@ module.exports = {
   createProductTableWithSeller,
   addDetailsColumn,
   addQuantityColumn,
+  deleteProduct,
 };

@@ -10,6 +10,45 @@ const Account = ({ currentUser, setCurrentUser }) => {
   const [productPrice, setProductPrice] = useState("");
   const [productDetails, setProductDetails] = useState("");
   const [productQuantity, setProductQuantity] = useState("");
+  const [productCategory, setProductCategory] = useState("");
+  const [productImage, setProductImage] = useState("");
+  const [products, setProducts] = useState([]);
+
+  useEffect(() => {
+    if (!currentUser) {
+      return;
+    }
+
+    const token = localStorage.getItem("token");
+
+    if (!token) {
+      setError("No token found");
+      return;
+    }
+
+    const headers = {
+      Authorization: `Bearer ${token}`,
+    };
+
+    fetch(`http://localhost:3000/api/products/user/${currentUser.id}`, {
+      headers,
+    })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+      })
+      .then((data) => {
+        console.log("Fetched data:", data);
+        if (Array.isArray(data)) {
+          setProducts(data);
+        } else {
+          console.error("Data is not an array:", data);
+        }
+      })
+      .catch((error) => setError(error.message));
+  }, [currentUser]);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -49,6 +88,17 @@ const Account = ({ currentUser, setCurrentUser }) => {
 
   const handleUpdateAccount = async (event) => {
     event.preventDefault();
+
+    if (
+      !productName ||
+      !productCategory ||
+      !productPrice ||
+      !productDetails ||
+      !productQuantity
+    ) {
+      alert("All fields are required");
+      return;
+    }
 
     const token = localStorage.getItem("token");
 
@@ -97,9 +147,11 @@ const Account = ({ currentUser, setCurrentUser }) => {
       headers,
       body: JSON.stringify({
         name: productName,
+        category: productCategory,
         price: productPrice,
         details: productDetails,
         quantity: productQuantity,
+        image: productImage,
       }),
     })
       .then((response) => {
@@ -114,8 +166,38 @@ const Account = ({ currentUser, setCurrentUser }) => {
         setProductPrice("");
         setProductDetails("");
         setProductQuantity("");
+        setProductCategory("");
+        setProductImage("");
       })
       .catch((error) => setError(error.message));
+  };
+
+  const deleteProduct = async (productId) => {
+    const token = localStorage.getItem("token");
+
+    if (!token) {
+      setError("No token found");
+      return;
+    }
+
+    const headers = {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    };
+
+    const response = await fetch(`/api/products/${productId}`, {
+      method: "DELETE",
+      headers,
+      body: JSON.stringify({ sellerId: currentUser.id }),
+    });
+
+    if (response.ok) {
+      // Remove the deleted product from the state
+      setProducts(products.filter((product) => product.id !== productId));
+    } else {
+      const errorData = await response.json();
+      setError(errorData.message);
+    }
   };
 
   if (isLoading) {
@@ -151,8 +233,20 @@ const Account = ({ currentUser, setCurrentUser }) => {
         </label>
         <button type="submit">Update</button>
       </form>
+
       {currentUser.accounttype === "seller" && (
         <div>
+          <h3>Your Products</h3>
+          <ul>
+            {products.map((product) => (
+              <li key={product.id}>
+                {product.name} - ${product.price}
+                <button onClick={() => deleteProduct(product.id)}>
+                  Delete
+                </button>
+              </li>
+            ))}
+          </ul>
           <h3>Add Product</h3>
           <form onSubmit={handleAddProduct}>
             <label>
@@ -161,6 +255,14 @@ const Account = ({ currentUser, setCurrentUser }) => {
                 type="text"
                 value={productName}
                 onChange={(e) => setProductName(e.target.value)}
+              />
+            </label>
+            <label>
+              Category:
+              <input
+                type="text"
+                value={productCategory}
+                onChange={(e) => setProductCategory(e.target.value)}
               />
             </label>
             <label>
@@ -184,6 +286,15 @@ const Account = ({ currentUser, setCurrentUser }) => {
                 type="number"
                 value={productQuantity}
                 onChange={(e) => setProductQuantity(e.target.value)}
+              />
+            </label>
+            <label>
+              Image:
+              <img src={productImage} alt="Product" />
+              <input
+                type="text"
+                value={productImage}
+                onChange={(e) => setProductImage(e.target.value)}
               />
             </label>
             <button type="submit">Add Product</button>
