@@ -5,6 +5,7 @@ const Register = ({ token, setToken }) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [accountType, setAccountType] = useState("buyer"); // Default to 'buyer'
   const [error, setError] = useState(null);
 
   const navigate = useNavigate();
@@ -22,7 +23,7 @@ const Register = ({ token, setToken }) => {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, accountType }), // Include accountType
       });
       if (!response.ok) {
         throw new Error("Failed to register");
@@ -65,6 +66,29 @@ const Register = ({ token, setToken }) => {
             onChange={(e) => setConfirmPassword(e.target.value)}
             required
           />
+        </div>
+        <div>
+          <label>Account Type</label>
+          <div>
+            <label>
+              <input
+                type="radio"
+                value="buyer"
+                checked={accountType === "buyer"}
+                onChange={(e) => setAccountType(e.target.value)}
+              />
+              Buyer
+            </label>
+            <label>
+              <input
+                type="radio"
+                value="seller"
+                checked={accountType === "seller"}
+                onChange={(e) => setAccountType(e.target.value)}
+              />
+              Seller
+            </label>
+          </div>
         </div>
         <button type="submit">Register</button>
       </form>

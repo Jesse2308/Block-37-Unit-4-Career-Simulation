@@ -6,6 +6,10 @@ const Account = ({ currentUser, setCurrentUser }) => {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [purchases, setPurchases] = useState([]);
+  const [productName, setProductName] = useState("");
+  const [productPrice, setProductPrice] = useState("");
+  const [productDetails, setProductDetails] = useState("");
+  const [productQuantity, setProductQuantity] = useState("");
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -26,7 +30,7 @@ const Account = ({ currentUser, setCurrentUser }) => {
         setUsername(data.user.username || "");
         setEmail(data.user.email || "");
         setIsLoading(false);
-
+        console.log("Current user:", currentUser);
         fetch(`http://localhost:3000/api/orders/${data.user.id}`, { headers })
           .then((response) => {
             if (!response.ok) {
@@ -73,6 +77,47 @@ const Account = ({ currentUser, setCurrentUser }) => {
       .catch((error) => setError(error.message));
   };
 
+  const handleAddProduct = async (event) => {
+    event.preventDefault();
+
+    const token = localStorage.getItem("token");
+
+    if (!token) {
+      setError("No token found");
+      return;
+    }
+
+    const headers = {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    };
+
+    fetch("http://localhost:3000/api/products", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        name: productName,
+        price: productPrice,
+        details: productDetails,
+        quantity: productQuantity,
+      }),
+    })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+      })
+      .then((data) => {
+        // Clear the form
+        setProductName("");
+        setProductPrice("");
+        setProductDetails("");
+        setProductQuantity("");
+      })
+      .catch((error) => setError(error.message));
+  };
+
   if (isLoading) {
     return <div>Loading...</div>;
   }
@@ -106,6 +151,45 @@ const Account = ({ currentUser, setCurrentUser }) => {
         </label>
         <button type="submit">Update</button>
       </form>
+      {currentUser.accounttype === "seller" && (
+        <div>
+          <h3>Add Product</h3>
+          <form onSubmit={handleAddProduct}>
+            <label>
+              Name:
+              <input
+                type="text"
+                value={productName}
+                onChange={(e) => setProductName(e.target.value)}
+              />
+            </label>
+            <label>
+              Price:
+              <input
+                type="number"
+                value={productPrice}
+                onChange={(e) => setProductPrice(e.target.value)}
+              />
+            </label>
+            <label>
+              Details:
+              <textarea
+                value={productDetails}
+                onChange={(e) => setProductDetails(e.target.value)}
+              />
+            </label>
+            <label>
+              Quantity:
+              <input
+                type="number"
+                value={productQuantity}
+                onChange={(e) => setProductQuantity(e.target.value)}
+              />
+            </label>
+            <button type="submit">Add Product</button>
+          </form>
+        </div>
+      )}
     </div>
   );
 };

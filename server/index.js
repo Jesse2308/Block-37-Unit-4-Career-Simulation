@@ -6,7 +6,7 @@ const {
   createCartTable,
   createOrderTable,
   createOrderProductTable,
-  addUsernameColumn,
+  addDetailsColumn,
 } = require("./db");
 
 const express = require("express");
@@ -137,6 +137,7 @@ app.post("/api/login", async (req, res, next) => {
           userId: user.id,
           token,
           email: user.email,
+          accountType: user.accountType,
         });
       } else {
         res.status(401).send({ success: false, message: "Invalid password" });
@@ -154,20 +155,25 @@ app.post("/api/login", async (req, res, next) => {
 // It then sends the new user in the response.
 app.post("/api/register", async (req, res, next) => {
   try {
-    const { email, password } = req.body;
+    console.log("Register endpoint hit");
+
+    const { email, password, accountType } = req.body;
     const hashedPassword = await bcrypt.hash(password, 10);
     const emailToken = crypto.randomBytes(20).toString("hex");
     const SQL = `
-        INSERT INTO users (email, password, emailToken)
-        VALUES ($1, $2, $3)
+        INSERT INTO users (email, password, accountType, emailToken)
+        VALUES ($1, $2, $3, $4)
         RETURNING *;
         `;
     const response = await client.query(SQL, [
       email,
       hashedPassword,
+      accountType,
       emailToken,
     ]);
     const user = response.rows[0];
+
+    console.log("User created, preparing to send email");
 
     const mailOptions = {
       from: process.env.EMAIL_USER,
@@ -183,12 +189,14 @@ app.post("/api/register", async (req, res, next) => {
       }
     });
 
+    console.log("Email send process initiated");
+
     res.send(user);
   } catch (error) {
+    console.log("Error in register endpoint: ", error);
     next(error);
   }
 });
-
 app.get("/api/verify-email", async (req, res, next) => {
   try {
     const { token } = req.query;
@@ -217,6 +225,44 @@ app.get("/api/products", async (req, res, next) => {
   try {
     const response = await client.query("SELECT * FROM products");
     res.send(response.rows);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/products", async (req, res, next) => {
+  try {
+    // Extract the token from the Authorization header
+    const token = req.headers.authorization.split(" ")[1];
+
+    // Verify the token
+    const payload = jwt.verify(token, process.env.JWT_SECRET);
+
+    // Extract the product data from the request body
+    const { name, price, details, quantity } = req.body;
+
+    // Insert the new product into the database
+    const SQL = `
+      INSERT INTO products (name, price, details, quantity, seller_id)
+      VALUES ($1, $2, $3, $4, $5)
+      RETURNING *;
+    `;
+    const response = await client.query(SQL, [
+      name,
+      price,
+      details,
+      quantity,
+      payload.userId,
+    ]);
+
+    if (response.rows.length > 0) {
+      const product = response.rows[0];
+      res.send({ success: true, product });
+    } else {
+      res
+        .status(500)
+        .send({ success: false, message: "Error creating product" });
+    }
   } catch (error) {
     next(error);
   }
@@ -350,7 +396,7 @@ app.post("/api/order_product", async (req, res, next) => {
   }
 });
 
-// app.get("/api/clear-users", async (req, res, next) => {   // This endpoint clears the users table in the database.
+// app.get("/api/clear-users", async (req, res, next) => {   // This endpoint clears the users table in the database. // http://localhost:3000/api/clear-users
 //   try {
 //     const SQL = `DELETE FROM users;`;
 //     await client.query(SQL);
@@ -374,6 +420,7 @@ const init = async () => {
   await createCartTable();
   await createOrderTable();
   await createOrderProductTable();
+  await addDetailsColumn();
   console.log("Tables created");
 
   app.listen(PORT, () => console.log(`Listening on port ${PORT}`));

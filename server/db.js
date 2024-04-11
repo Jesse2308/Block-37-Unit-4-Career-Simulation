@@ -65,36 +65,72 @@ const createUser = async ({ email, password }) => {
 };
 const createUserTable = async () => {
   const SQL = `
-    DROP TABLE IF EXISTS users CASCADE;
-    CREATE TABLE Users (
-        id SERIAL PRIMARY KEY,
-        username VARCHAR(255), 
-        email VARCHAR(255) UNIQUE,
-        password VARCHAR(255),
-        is_guest BOOLEAN DEFAULT FALSE,
-        emailToken TEXT,
-        verified BOOLEAN DEFAULT false
+    CREATE TABLE IF NOT EXISTS users (
+      id SERIAL PRIMARY KEY,
+      email VARCHAR(255) UNIQUE NOT NULL,
+      password VARCHAR(255) NOT NULL,
+      accountType VARCHAR(255) NOT NULL,
+      emailToken VARCHAR(255),
+      verified BOOLEAN DEFAULT false
     );
-    `;
-
+  `;
   await client.query(SQL);
 };
+
+async function createProductTableWithSeller() {
+  try {
+    const SQL = `
+      CREATE TABLE IF NOT EXISTS products (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        price DECIMAL(10, 2) NOT NULL,
+        details TEXT,
+        quantity INT NOT NULL,
+        seller_id INT REFERENCES users(id)
+      );
+    `;
+    await client.query(SQL);
+    console.log("Created products table with seller");
+  } catch (error) {
+    console.error("Error creating products table with seller", error);
+    throw error;
+  }
+}
 
 const createProductTable = async () => {
   const SQL = `
-    DROP TABLE IF EXISTS products CASCADE;
-    CREATE TABLE Products (
-        id SERIAL PRIMARY KEY,
-        name VARCHAR(255) NOT NULL,
-        category VARCHAR(255) NOT NULL CHECK (category IN ('Controller', 'PC', 'Monitor')),
-        price DECIMAL(10, 2) NOT NULL,
-        description TEXT,
-        image VARCHAR(255),
-        stock INT DEFAULT 0
+    CREATE TABLE IF NOT EXISTS products (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(255) NOT NULL,
+      price NUMERIC(10, 2) NOT NULL,
+      details TEXT,
+      quantity INTEGER NOT NULL,
+      seller_id INTEGER REFERENCES users(id)
     );
-    `;
+  `;
   await client.query(SQL);
 };
+
+const addDetailsColumn = async () => {
+  const SQL = `
+    ALTER TABLE products
+    ADD COLUMN IF NOT EXISTS details TEXT;
+  `;
+  await client.query(SQL);
+};
+
+async function addQuantityColumn() {
+  try {
+    await client.query(
+      "ALTER TABLE products ADD COLUMN IF NOT EXISTS quantity INTEGER DEFAULT 0 NOT NULL;"
+    );
+    console.log("Quantity column added successfully.");
+  } catch (error) {
+    console.error("Error adding quantity column:", error);
+  }
+}
+
+addQuantityColumn();
 
 const createCartTable = async () => {
   const SQL = `
@@ -126,12 +162,47 @@ const createOrderTable = async () => {
 };
 
 const addProduct = async (name, category, price, description, image, stock) => {
+  // Check if a product with the same name already exists
+  const checkSQL = `
+    SELECT * FROM Products WHERE name = $1;
+  `;
+  const checkResponse = await client.query(checkSQL, [name]);
+  if (checkResponse.rows.length > 0) {
+    console.log(`Product with name ${name} already exists.`);
+    return;
+  }
+
+  // If not, insert the new product
   const SQL = `
     INSERT INTO Products (name, category, price, description, image, stock)
     VALUES ($1, $2, $3, $4, $5, $6);
-    `;
+  `;
   await client.query(SQL, [name, category, price, description, image, stock]);
 };
+
+const deleteDuplicates = async () => {
+  const query = `
+    DELETE FROM products
+    WHERE id IN (
+      SELECT id
+      FROM (
+        SELECT id,
+               ROW_NUMBER() OVER( PARTITION BY name, details ORDER BY id ) AS row_num
+         FROM products
+      ) t
+      WHERE t.row_num > 1
+    );
+  `;
+
+  try {
+    const res = await client.query(query);
+    console.log("Duplicates deleted successfully");
+  } catch (err) {
+    console.error("Error deleting duplicates:", err);
+  }
+};
+
+deleteDuplicates();
 
 const createOrderProductTable = async () => {
   const SQL = `
@@ -281,4 +352,7 @@ module.exports = {
   findUserWithToken,
   fetchUsers,
   register,
+  createProductTableWithSeller,
+  addDetailsColumn,
+  addQuantityColumn,
 };
