@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
-const Login = ({ setToken, setUsername }) => {
-  const [localUsername, setLocalUsername] = useState("");
+const Login = ({ setToken, setEmail }) => {
+  const [localEmail, setLocalEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -19,22 +19,16 @@ const Login = ({ setToken, setUsername }) => {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ username: localUsername, password }),
+        body: JSON.stringify({ email: localEmail, password }),
       });
       if (!response.ok) {
         throw new Error("Failed to login");
       }
       const data = await response.json();
-      console.log("Response data:", data); // Add this line
       localStorage.setItem("token", data.token);
-      localStorage.setItem("username", data.username);
-      console.log("Token in local storage:", localStorage.getItem("token")); // Add this line
-      console.log(
-        "Username in local storage:",
-        localStorage.getItem("username")
-      ); // Add this line
+      localStorage.setItem("email", data.email);
       setToken(data.token);
-      setUsername(data.username);
+      setEmail(data.email);
 
       // Redirect to the account page
       navigate("/account");
@@ -59,11 +53,11 @@ const Login = ({ setToken, setUsername }) => {
       {error && <p>{error}</p>}
       <form onSubmit={handleSubmit}>
         <div>
-          <label>Username</label>
+          <label>Email</label>
           <input
-            type="text"
-            value={localUsername}
-            onChange={(e) => setLocalUsername(e.target.value)}
+            type="email"
+            value={localEmail}
+            onChange={(e) => setLocalEmail(e.target.value)}
             required
           />
         </div>

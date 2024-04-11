@@ -4,23 +4,63 @@ const client = new pg.Client(
 );
 
 const bcrypt = require("bcrypt");
+const crypto = require("crypto");
+const nodemailer = require("nodemailer");
+const jwt = require("jsonwebtoken");
 
-const register = async ({ username, password, email }) => {
+const JWT_SECRET = process.env.JWT_SECRET;
+
+const register = async ({ email, password }) => {
+  // Check if a user with the given email already exists
+  const checkSQL = `
+    SELECT * FROM users WHERE email = $1;
+  `;
+  const checkResponse = await client.query(checkSQL, [email]);
+  if (checkResponse.rows.length > 0) {
+    throw new Error("A user with this email already exists");
+  }
+
+  // If not, insert the new user
   const SQL = `
-    INSERT INTO users (username, password, email)
-    VALUES ($1, $2, $3)
+    INSERT INTO users (email, password, emailToken, verified)
+    VALUES ($1, $2, $3, $4)
     RETURNING *;
   `;
   const hashedPassword = await bcrypt.hash(password, 10);
-  const response = await client.query(SQL, [username, hashedPassword, email]);
-  return response.rows[0];
+  const emailToken = crypto.randomBytes(20).toString("hex");
+  const response = await client.query(SQL, [
+    email,
+    hashedPassword,
+    emailToken,
+    false,
+  ]);
+  const user = response.rows[0];
+
+  const transporter = nodemailer.createTransport({
+    host: "smtp.gmail.com",
+    port: 587,
+    secure: false, // true for 465, false for other ports
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS,
+    },
+  });
+  const mailOptions = {
+    from: process.env.EMAIL_USER,
+    to: user.email,
+    subject: "Email Verification",
+    text: `Please verify your email address by clicking the following link: http://localhost:5173/verify-email?token=${emailToken}`,
+  };
+  await transporter.sendMail(mailOptions);
+
+  return user;
 };
-const createUser = async ({ username, password }) => {
+const createUser = async ({ email, password }) => {
   const SQL = `
-    INSERT INTO users(username, password) VALUES($1, $2) RETURNING *
+    INSERT INTO users(email, password) VALUES($1, $2) RETURNING *
   `;
   const hashedPassword = await bcrypt.hash(password, 5);
-  const response = await client.query(SQL, [username, hashedPassword]);
+  const response = await client.query(SQL, [email, hashedPassword]);
   return response.rows[0];
 };
 const createUserTable = async () => {
@@ -28,10 +68,12 @@ const createUserTable = async () => {
     DROP TABLE IF EXISTS users CASCADE;
     CREATE TABLE Users (
         id SERIAL PRIMARY KEY,
-        username VARCHAR(255) UNIQUE,
-        password VARCHAR(255),
+        username VARCHAR(255), 
         email VARCHAR(255) UNIQUE,
-        is_guest BOOLEAN DEFAULT FALSE
+        password VARCHAR(255),
+        is_guest BOOLEAN DEFAULT FALSE,
+        emailToken TEXT,
+        verified BOOLEAN DEFAULT false
     );
     `;
 
@@ -179,11 +221,11 @@ const createOrderProductTable = async () => {
   );
 };
 
-const authenticate = async ({ username, password }) => {
+const authenticate = async ({ email, password }) => {
   const SQL = `
-    SELECT id, username, password FROM users WHERE username=$1;
+    SELECT id, email, password FROM users WHERE email=$1;
   `;
-  const response = await client.query(SQL, [username]);
+  const response = await client.query(SQL, [email]);
   if (
     !response.rows.length ||
     (await bcrypt.compare(password, response.rows[0].password)) === false
@@ -192,14 +234,14 @@ const authenticate = async ({ username, password }) => {
     error.status = 401;
     throw error;
   }
-  const token = await jwt.sign({ id: response.rows[0].id }, JWT);
+  const token = await jwt.sign({ id: response.rows[0].id }, JWT_SECRET);
   return { token };
 };
 
 const findUserWithToken = async (token) => {
   let id;
   try {
-    const payload = await jwt.verify(token, JWT);
+    const payload = await jwt.verify(token, JWT_SECRET);
     id = payload.id;
   } catch (ex) {
     const error = Error("not authorized");
@@ -207,7 +249,7 @@ const findUserWithToken = async (token) => {
     throw error;
   }
   const SQL = `
-    SELECT id, username FROM users WHERE id=$1;
+    SELECT id, email FROM users WHERE id=$1;
   `;
   const response = await client.query(SQL, [id]);
   if (!response.rows.length) {
@@ -220,7 +262,7 @@ const findUserWithToken = async (token) => {
 
 const fetchUsers = async () => {
   const SQL = `
-    SELECT id, username FROM users;
+    SELECT id, email FROM users;
   `;
   const response = await client.query(SQL);
   return response.rows;

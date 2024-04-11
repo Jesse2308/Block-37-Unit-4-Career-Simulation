@@ -14,27 +14,28 @@ import {
 function App() {
   const [cart, setCart] = useState([]);
   const [token, setToken] = useState(null);
-  const [username, setUsername] = useState(null);
+  const [email, setEmail] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
 
   useEffect(() => {
     const tokenFromStorage = localStorage.getItem("token");
-    const usernameFromStorage = localStorage.getItem("username");
+    const emailFromStorage = localStorage.getItem("email");
     if (tokenFromStorage) {
       setToken(tokenFromStorage);
     }
-    if (usernameFromStorage) {
-      setUsername(usernameFromStorage);
+    if (emailFromStorage) {
+      setEmail(emailFromStorage);
     }
   }, []);
 
   console.log("App token:", token);
-  console.log("App username:", username);
+  console.log("App email:", email);
 
   const logout = () => {
     localStorage.removeItem("token");
-    localStorage.removeItem("username");
+    localStorage.removeItem("email");
     setToken(null);
-    setUsername(null);
+    setEmail(null);
   };
 
   const removeFromCart = (productId) => {
@@ -45,15 +46,29 @@ function App() {
 
   return (
     <div>
-      <NavBar token={token} username={username} logout={logout} />
+      <NavBar
+        token={token}
+        email={email}
+        currentUser={currentUser}
+        logout={logout}
+      />
       <Routes>
         <Route index element={<Store setCart={setCart} />} />
         <Route
           path="/login"
-          element={<Login setToken={setToken} setUsername={setUsername} />}
+          element={<Login setToken={setToken} setEmail={setEmail} />}
         />
         <Route path="/register" element={<Register setToken={setToken} />} />
-        <Route path="/account" element={<Account token={token} />} />
+        <Route
+          path="/account"
+          element={
+            <Account
+              token={token}
+              currentUser={currentUser}
+              setCurrentUser={setCurrentUser}
+            />
+          }
+        />
         <Route
           path="/cart"
           element={

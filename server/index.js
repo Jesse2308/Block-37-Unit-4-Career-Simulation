@@ -1,3 +1,4 @@
+require("dotenv").config();
 const {
   client,
   createUserTable,
@@ -5,6 +6,7 @@ const {
   createCartTable,
   createOrderTable,
   createOrderProductTable,
+  addUsernameColumn,
 } = require("./db");
 
 const express = require("express");
@@ -13,6 +15,8 @@ const app = express();
 app.use(express.json());
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
+const crypto = require("crypto");
+const nodemailer = require("nodemailer");
 
 const path = require("path");
 app.use(cors());
@@ -30,7 +34,7 @@ app.get("/api/user", async (req, res, next) => {
     const token = req.headers.authorization.split(" ")[1];
 
     // Verify the token
-    const payload = jwt.verify(token, "your_secret_key");
+    const payload = jwt.verify(token, process.env.JWT_SECRET);
 
     // Find the user with the userId from the token's payload
     const SQL = `
@@ -49,13 +53,23 @@ app.get("/api/user", async (req, res, next) => {
   }
 });
 
+const transporter = nodemailer.createTransport({
+  host: "smtp.gmail.com",
+  port: 587,
+  secure: false, // true for 465, false for other ports
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS, // your Gmail password
+  },
+});
+
 app.put("/api/user", async (req, res, next) => {
   try {
     // Extract the token from the Authorization header
     const token = req.headers.authorization.split(" ")[1];
 
     // Verify the token
-    const payload = jwt.verify(token, "your_secret_key");
+    const payload = jwt.verify(token, process.env.JWT_SECRET);
 
     // Extract the updated user data from the request body
     const { username, email } = req.body;
@@ -83,7 +97,7 @@ app.put("/api/user", async (req, res, next) => {
 app.get("/api/me", async (req, res, next) => {
   try {
     const token = req.headers.authorization.split(" ")[1];
-    const payload = jwt.verify(token, "your_secret_key");
+    const payload = jwt.verify(token, process.env.JWT_SECRET);
     const SQL = `
         SELECT * FROM users WHERE id = $1;
         `;
@@ -99,30 +113,30 @@ app.get("/api/me", async (req, res, next) => {
   }
 });
 // This endpoint handles user login.
-// It takes a username and password from the request body,
-// finds the user with the given username in the database,
+// It takes an email and password from the request body,
+// finds the user with the given email in the database,
 // and checks if the given password matches the user's password.
 // If the password is correct, it generates a JWT and sends it in the response.
 // If the password is incorrect or the user is not found, it sends an error message.
 app.post("/api/login", async (req, res, next) => {
   try {
-    const { username, password } = req.body;
+    const { email, password } = req.body;
     const SQL = `
-        SELECT * FROM users WHERE username = $1;
+        SELECT * FROM users WHERE email = $1;
         `;
-    const response = await client.query(SQL, [username]);
+    const response = await client.query(SQL, [email]);
     if (response.rows.length > 0) {
       const user = response.rows[0];
       if (await bcrypt.compare(password, user.password)) {
         // Generate a token
-        const token = jwt.sign({ userId: user.id }, "your_secret_key", {
+        const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, {
           expiresIn: "1h",
         });
         res.send({
           success: true,
           userId: user.id,
           token,
-          username: user.username,
+          email: user.email,
         });
       } else {
         res.status(401).send({ success: false, message: "Invalid password" });
@@ -135,24 +149,67 @@ app.post("/api/login", async (req, res, next) => {
   }
 });
 // This endpoint handles user registration.
-// It takes a username and password from the request body,
-// hashes the password, and inserts a new user into the database with the given username and hashed password.
+// It takes an email and password from the request body,
+// hashes the password, and inserts a new user into the database with the given email and hashed password.
 // It then sends the new user in the response.
 app.post("/api/register", async (req, res, next) => {
   try {
-    const { username, password } = req.body;
+    const { email, password } = req.body;
     const hashedPassword = await bcrypt.hash(password, 10);
+    const emailToken = crypto.randomBytes(20).toString("hex");
     const SQL = `
-        INSERT INTO users (username, password)
-        VALUES ($1, $2)
+        INSERT INTO users (email, password, emailToken)
+        VALUES ($1, $2, $3)
         RETURNING *;
         `;
-    const response = await client.query(SQL, [username, hashedPassword]);
-    res.send(response.rows[0]);
+    const response = await client.query(SQL, [
+      email,
+      hashedPassword,
+      emailToken,
+    ]);
+    const user = response.rows[0];
+
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: user.email,
+      subject: "Email Verification",
+      text: `Please verify your email address by clicking the following link: https://http://localhost:5173//verify-email?token=${emailToken}`,
+    };
+    transporter.sendMail(mailOptions, (error, info) => {
+      if (error) {
+        console.log("Error sending email: ", error);
+      } else {
+        console.log("Email sent: " + info.response);
+      }
+    });
+
+    res.send(user);
   } catch (error) {
     next(error);
   }
 });
+
+app.get("/api/verify-email", async (req, res, next) => {
+  try {
+    const { token } = req.query;
+    const SQL = `
+        UPDATE users
+        SET verified = true, emailToken = NULL
+        WHERE emailToken = $1
+        RETURNING *;
+        `;
+    const response = await client.query(SQL, [token]);
+    if (response.rows.length > 0) {
+      const user = response.rows[0];
+      res.send({ success: true, user });
+    } else {
+      res.status(404).send({ success: false, message: "Invalid token" });
+    }
+  } catch (error) {
+    next(error);
+  }
+});
+
 // This endpoint fetches all products.
 // It sends a query to the database to select all products,
 // and then sends the products in the response.
@@ -294,8 +351,8 @@ app.post("/api/order_product", async (req, res, next) => {
 });
 
 app.use((err, req, res, next) => {
-  console.log(err);
-  res.status(500).send({ error: err.message });
+  console.error(err.stack); // Log error stack trace to the console
+  res.status(500).send({ error: err.message }); // Send a 500 response with the error message
 });
 const init = async () => {
   const PORT = process.env.PORT || 3000;

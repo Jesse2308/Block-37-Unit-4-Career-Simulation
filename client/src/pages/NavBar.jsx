@@ -1,11 +1,18 @@
 import React from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
-const NavBar = ({ token, username, logout }) => {
+const NavBar = ({ token, logout, currentUser }) => {
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate("/");
+  };
+
   return (
     <nav>
       <ul>
-        {token && <li>Welcome, {username}!</li>}
+        {token && currentUser && <li>Welcome, {currentUser.username}!</li>}
         <li>
           <Link to="/">Home</Link>
         </li>
@@ -24,9 +31,10 @@ const NavBar = ({ token, username, logout }) => {
             <li>
               <Link to="/account">Account</Link>
             </li>
-            <li>
-              <button onClick={logout}>Logout</button>
-            </li>
+
+            <button id="logout-button" onClick={handleLogout}>
+              Logout
+            </button>
           </>
         )}
       </ul>
