@@ -173,7 +173,7 @@ app.post("/api/register", async (req, res, next) => {
       from: process.env.EMAIL_USER,
       to: user.email,
       subject: "Email Verification",
-      text: `Please verify your email address by clicking the following link: https://http://localhost:5173//verify-email?token=${emailToken}`,
+      text: `Please verify your email address by clicking the following link: http://localhost:5173/verify-email?token=${emailToken}`,
     };
     transporter.sendMail(mailOptions, (error, info) => {
       if (error) {
@@ -349,6 +349,16 @@ app.post("/api/order_product", async (req, res, next) => {
     next(error);
   }
 });
+
+// app.get("/api/clear-users", async (req, res, next) => {   // This endpoint clears the users table in the database.
+//   try {
+//     const SQL = `DELETE FROM users;`;
+//     await client.query(SQL);
+//     res.send({ success: true, message: "Users table cleared" });
+//   } catch (error) {
+//     next(error);
+//   }
+// });
 
 app.use((err, req, res, next) => {
   console.error(err.stack); // Log error stack trace to the console
