@@ -13,6 +13,7 @@ const Account = ({ currentUser, setCurrentUser }) => {
   const [productCategory, setProductCategory] = useState("");
   const [productImage, setProductImage] = useState("");
   const [products, setProducts] = useState([]);
+  const [successMessage, setSuccessMessage] = useState("");
 
   useEffect(() => {
     if (!currentUser) {
@@ -89,13 +90,7 @@ const Account = ({ currentUser, setCurrentUser }) => {
   const handleUpdateAccount = async (event) => {
     event.preventDefault();
 
-    if (
-      !productName ||
-      !productCategory ||
-      !productPrice ||
-      !productDetails ||
-      !productQuantity
-    ) {
+    if (!username || !email) {
       alert("All fields are required");
       return;
     }
@@ -123,12 +118,26 @@ const Account = ({ currentUser, setCurrentUser }) => {
         }
         return response.json();
       })
-      .then((data) => setCurrentUser(data.user))
+      .then((data) => {
+        setCurrentUser(data.user);
+        setUsername(""); // Clear the username input field
+      })
       .catch((error) => setError(error.message));
   };
 
   const handleAddProduct = async (event) => {
     event.preventDefault();
+
+    if (
+      !productName ||
+      !productCategory ||
+      !productPrice ||
+      !productDetails ||
+      !productQuantity
+    ) {
+      alert("All fields are required");
+      return;
+    }
 
     const token = localStorage.getItem("token");
 
@@ -179,7 +188,6 @@ const Account = ({ currentUser, setCurrentUser }) => {
       setError("No token found");
       return;
     }
-
     const headers = {
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
@@ -194,11 +202,23 @@ const Account = ({ currentUser, setCurrentUser }) => {
     if (response.ok) {
       // Remove the deleted product from the state
       setProducts(products.filter((product) => product.id !== productId));
+      setSuccessMessage("Product successfully deleted"); // Add this line
     } else {
       const errorData = await response.json();
       setError(errorData.message);
     }
   };
+
+  // Clear the success message after 5 seconds
+  useEffect(() => {
+    if (successMessage) {
+      const timer = setTimeout(() => {
+        setSuccessMessage("");
+      }, 5000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [successMessage]);
 
   if (isLoading) {
     return <div>Loading...</div>;
@@ -233,7 +253,7 @@ const Account = ({ currentUser, setCurrentUser }) => {
         </label>
         <button type="submit">Update</button>
       </form>
-
+      {successMessage && <p>{successMessage}</p>}
       {currentUser.accounttype === "seller" && (
         <div>
           <h3>Your Products</h3>

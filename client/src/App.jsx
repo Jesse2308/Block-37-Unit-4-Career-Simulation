@@ -12,21 +12,38 @@ import {
 } from "./pages";
 
 function App() {
-  const [cart, setCart] = useState([]);
+  const newSetCart = (newCart) => {
+    console.log("newSetCart called with:", newCart);
+    console.trace(); // Log the call stack
+    setCart(newCart);
+  };
+
   const [token, setToken] = useState(null);
   const [email, setEmail] = useState(null);
+  const [cart, setCart] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
 
   useEffect(() => {
     const tokenFromStorage = localStorage.getItem("token");
     const emailFromStorage = localStorage.getItem("email");
+    const cartFromStorage = localStorage.getItem("cart");
     if (tokenFromStorage) {
       setToken(tokenFromStorage);
     }
     if (emailFromStorage) {
       setEmail(emailFromStorage);
     }
+    if (cartFromStorage && cartFromStorage !== "[]") {
+      const parsedCart = JSON.parse(cartFromStorage);
+      if (parsedCart.length > 0) {
+        newSetCart(parsedCart);
+      }
+    }
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem("cart", JSON.stringify(cart));
+  }, [cart]);
 
   console.log("App token:", token);
   console.log("App email:", email);
@@ -53,7 +70,7 @@ function App() {
         logout={logout}
       />
       <Routes>
-        <Route index element={<Store setCart={setCart} />} />
+        <Route index element={<Store setCart={setCart} />} />{" "}
         <Route
           path="/login"
           element={<Login setToken={setToken} setEmail={setEmail} />}
@@ -76,6 +93,8 @@ function App() {
               cart={cart}
               removeFromCart={removeFromCart}
               setCart={setCart}
+              newSetCart={newSetCart}
+              user={currentUser}
             />
           }
         />

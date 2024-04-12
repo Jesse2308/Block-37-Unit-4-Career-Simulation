@@ -8,13 +8,13 @@ const Product = ({ product, addToCart, buyNow }) => (
     <img src={product.image} alt={product.name} />
     <p>{product.description}</p>
     <p>${product.price}</p>
-    <p>Stock: {product.stock}</p>
+    {/* <p>Stock: {product.stock}</p> */}
     <button onClick={() => addToCart(product)}>Add to Cart</button>
     <button onClick={() => buyNow(product)}>Buy Now</button>
   </div>
 );
 
-const Store = ({ setCart }) => {
+const Store = ({ setCart, user }) => {
   const [products, setProducts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -23,27 +23,44 @@ const Store = ({ setCart }) => {
   const viewCart = () => {
     navigate("/cart");
   };
+  const addToCart = (item) => {
+    let cart = localStorage.getItem("cart");
+    if (cart) {
+      cart = JSON.parse(cart);
+    } else {
+      cart = [];
+    }
+    cart.push(item);
+    localStorage.setItem("cart", JSON.stringify(cart));
 
-  const addToCart = (product) => {
-    // Decrease the stock of the product
-    const updatedProduct = { ...product, stock: product.stock - 1 };
-
-    // Update the product in the products array
-    const updatedProducts = products.map((p) =>
-      p.id === product.id ? updatedProduct : p
-    );
-    setProducts(updatedProducts);
-
-    // Add the product to the cart
-    setCart((prevCart) => [
-      ...prevCart,
-      { ...updatedProduct, cartItemId: Date.now() },
-    ]);
+    console.log("Adding to cart:", item); // Log the item being added
+    setCart((prevCart) => {
+      const newCart = [
+        ...prevCart,
+        { ...item, cartId: `${item.id}-${Date.now()}` },
+      ];
+      if (user) {
+        // Save newCart to server
+        fetch(`/api/cart/${user.id}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(newCart),
+        });
+      } else {
+        // Save newCart to localStorage
+        localStorage.setItem("cart", JSON.stringify(newCart));
+      }
+      return newCart;
+    });
   };
 
   const buyNow = (product) => {
     // Decrease the stock of the product
-    const updatedProduct = { ...product, stock: product.stock - 1 };
+    const updatedProduct = {
+      ...product,
+      stock: product.stock - 1,
+      quantity: 1,
+    };
 
     // Update the product in the products array
     const updatedProducts = products.map((p) =>
@@ -95,8 +112,10 @@ const Store = ({ setCart }) => {
                 addToCart={() => addToCart(product)}
                 buyNow={buyNow}
               />
-              <button>
-                <Link to={`/products/${product.id}`}>View Details</Link>
+              <button className="details-button">
+                <Link to={`/products/${product.id}`} className="details-link">
+                  View Details
+                </Link>
               </button>
             </div>
           ))}

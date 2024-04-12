@@ -21,6 +21,15 @@ const {
   addDetailsColumn,
 } = require("./db");
 
+// Define utility functions
+async function deleteProduct(productId, sellerId) {
+  const SQL = `
+    DELETE FROM products
+    WHERE id = $1 AND seller_id = $2;
+  `;
+  await client.query(SQL, [productId, sellerId]);
+}
+
 // Create Express app
 const app = express();
 module.exports = app;
@@ -85,6 +94,18 @@ app.put("/api/user", async (req, res, next) => {
     // Extract the updated user data from the request body
     const { username, email } = req.body;
 
+    // Fetch the current user data
+    const fetchSQL = `
+        SELECT * FROM users WHERE id = $1;
+        `;
+    const fetchResponse = await client.query(fetchSQL, [payload.userId]);
+    const currentUser = fetchResponse.rows[0];
+
+    // If a field is not provided in the request body, use the current value
+    const updatedUsername =
+      username !== undefined ? username : currentUser.username;
+    const updatedEmail = email !== undefined ? email : currentUser.email;
+
     // Update the user with the userId from the token's payload
     const SQL = `
         UPDATE users
@@ -92,7 +113,11 @@ app.put("/api/user", async (req, res, next) => {
         WHERE id = $3
         RETURNING *;
         `;
-    const response = await client.query(SQL, [username, email, payload.userId]);
+    const response = await client.query(SQL, [
+      updatedUsername,
+      updatedEmail,
+      payload.userId,
+    ]);
 
     if (response.rows.length > 0) {
       const user = response.rows[0];
@@ -100,6 +125,46 @@ app.put("/api/user", async (req, res, next) => {
     } else {
       res.status(404).send({ success: false, message: "User not found" });
     }
+  } catch (error) {
+    next(error);
+  }
+});
+app.put("/api/users/:id", async (req, res, next) => {
+  try {
+    const { email, password, accountType, username } = req.body;
+    const { id } = req.params;
+
+    // Fetch the current user data
+    const fetchSQL = `
+        SELECT * FROM users WHERE id = $1;
+        `;
+    const fetchResponse = await client.query(fetchSQL, [id]);
+    const currentUser = fetchResponse.rows[0];
+
+    // If a field is not provided in the request body, use the current value
+    const updatedEmail = email !== undefined ? email : currentUser.email;
+    const updatedPassword =
+      password !== undefined ? password : currentUser.password;
+    const updatedAccountType =
+      accountType !== undefined ? accountType : currentUser.accountType;
+    const updatedUsername =
+      username !== undefined ? username : currentUser.username;
+
+    const SQL = `
+        UPDATE users
+        SET email = $1, password = $2, accountType = $3, username = $4
+        WHERE id = $5
+        RETURNING *;
+        `;
+    const response = await client.query(SQL, [
+      updatedEmail,
+      updatedPassword,
+      updatedAccountType,
+      updatedUsername,
+      id,
+    ]);
+    const user = response.rows[0];
+    res.send(user);
   } catch (error) {
     next(error);
   }
@@ -160,15 +225,44 @@ app.post("/api/register", async (req, res, next) => {
   try {
     console.log("Register endpoint hit");
 
-    const { email, password, accountType } = req.body;
+    const { email = "", password = "", accountType = "", username } = req.body;
+    if (!username) {
+      res.status(400).send({ success: false, message: "Username is required" });
+      return;
+    }
+
+    // Check if the username is unique
+    const checkUsernameSQL = `
+        SELECT * FROM users WHERE username = $1;
+        `;
+    const checkUsernameResponse = await client.query(checkUsernameSQL, [
+      username,
+    ]);
+    if (checkUsernameResponse.rows.length > 0) {
+      res
+        .status(400)
+        .send({ success: false, message: "Username is already taken" });
+      return;
+    }
+
+    // Require a password if an email is provided
+    if (email && !password) {
+      res.status(400).send({
+        success: false,
+        message: "Password is required when an email is provided",
+      });
+      return;
+    }
+
     const hashedPassword = await bcrypt.hash(password, 10);
     const emailToken = crypto.randomBytes(20).toString("hex");
     const SQL = `
-        INSERT INTO users (email, password, accountType, emailToken)
-        VALUES ($1, $2, $3, $4)
+        INSERT INTO users (username, email, password, accountType, emailToken)
+        VALUES ($1, $2, $3, $4, $5)
         RETURNING *;
         `;
     const response = await client.query(SQL, [
+      username,
       email,
       hashedPassword,
       accountType,
@@ -300,7 +394,7 @@ app.get("/api/products/user/:userId", async (req, res, next) => {
     if (response.rows.length > 0) {
       res.send(response.rows);
     } else {
-      res.status(404).send({ message: "No products found for this user" });
+      res.send([]); // Send an empty array when no products are found
     }
   } catch (error) {
     next(error);
@@ -312,7 +406,7 @@ app.delete("/api/products/:productId", async (req, res, next) => {
     const { productId } = req.params;
     const { sellerId } = req.body; // You'll need to send the sellerId in the request body
     await deleteProduct(productId, sellerId);
-    res.sendStatus(204);
+    res.status(204).json({ message: "Product successfully deleted" });
   } catch (err) {
     next(err);
   }
@@ -343,6 +437,38 @@ app.get("/api/cart/:user_id", async (req, res, next) => {
         ON cart.product_id = products.id
         WHERE user_id = $1;
         `;
+    const response = await client.query(SQL, [user_id]);
+    res.send(response.rows);
+  } catch (error) {
+    next(error);
+  }
+});
+app.put("/api/cart/:user_id", async (req, res, next) => {
+  try {
+    const { user_id } = req.params;
+    const { cart } = req.body; // The updated cart from the client
+
+    // Delete the old cart
+    await client.query("DELETE FROM cart WHERE user_id = $1", [user_id]);
+
+    // Insert the new cart
+    for (const item of cart) {
+      const { product_id, quantity } = item;
+      const SQL = `
+        INSERT INTO cart (user_id, product_id, quantity)
+        VALUES ($1, $2, $3)
+        RETURNING *;
+      `;
+      await client.query(SQL, [user_id, product_id, quantity]);
+    }
+
+    // Fetch and return the updated cart
+    const SQL = `
+      SELECT * FROM cart
+      JOIN products
+      ON cart.product_id = products.id
+      WHERE user_id = $1;
+    `;
     const response = await client.query(SQL, [user_id]);
     res.send(response.rows);
   } catch (error) {

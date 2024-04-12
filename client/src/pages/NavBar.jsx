@@ -14,7 +14,7 @@ const NavBar = ({ token, logout, currentUser }) => {
       <ul>
         {token && currentUser && <li>Welcome, {currentUser.username}!</li>}
         <li>
-          <Link to="/">Home</Link>
+          <Link to="/">Store</Link>
         </li>
         {!token && (
           <>
