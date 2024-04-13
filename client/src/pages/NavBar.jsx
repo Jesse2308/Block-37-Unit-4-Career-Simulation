@@ -1,22 +1,28 @@
-import React from "react";
+import { useContext } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { UserContext } from "./UserProvider";
 
-const NavBar = ({ token, logout, currentUser }) => {
+const NavBar = () => {
   const navigate = useNavigate();
+  const { user, logout, isLoading } = useContext(UserContext);
 
   const handleLogout = () => {
     logout();
     navigate("/");
   };
+  console.log("currentUser:", user);
 
+  if (isLoading) {
+    return <div>Loading...</div>;
+  }
   return (
     <nav>
       <ul>
-        {token && currentUser && <li>Welcome, {currentUser.username}!</li>}
+        {user && <li>Welcome, {user.username}!</li>}
         <li>
           <Link to="/">Store</Link>
         </li>
-        {!token && (
+        {!user && (
           <>
             <li>
               <Link to="/login">Login</Link>
@@ -26,7 +32,7 @@ const NavBar = ({ token, logout, currentUser }) => {
             </li>
           </>
         )}
-        {token && (
+        {user && (
           <>
             <li>
               <Link to="/account">Account</Link>

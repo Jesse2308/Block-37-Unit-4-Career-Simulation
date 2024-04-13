@@ -1,6 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useContext } from "react";
+import { UserContext } from "./UserProvider";
 
-const Account = ({ currentUser, setCurrentUser }) => {
+const Account = () => {
+  const { user, setCurrentUser } = useContext(UserContext);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [username, setUsername] = useState("");
@@ -16,10 +18,6 @@ const Account = ({ currentUser, setCurrentUser }) => {
   const [successMessage, setSuccessMessage] = useState("");
 
   useEffect(() => {
-    if (!currentUser) {
-      return;
-    }
-
     const token = localStorage.getItem("token");
 
     if (!token) {
@@ -31,7 +29,7 @@ const Account = ({ currentUser, setCurrentUser }) => {
       Authorization: `Bearer ${token}`,
     };
 
-    fetch(`http://localhost:3000/api/products/user/${currentUser.id}`, {
+    fetch(`http://localhost:3000/api/user`, {
       headers,
     })
       .then((response) => {
@@ -42,14 +40,15 @@ const Account = ({ currentUser, setCurrentUser }) => {
       })
       .then((data) => {
         console.log("Fetched data:", data);
-        if (Array.isArray(data)) {
-          setProducts(data);
+        if (data.success) {
+          setCurrentUser(data.user);
+          setIsLoading(false);
         } else {
-          console.error("Data is not an array:", data);
+          console.error("Failed to fetch user:", data.message);
         }
       })
       .catch((error) => setError(error.message));
-  }, [currentUser]);
+  }, []);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -70,7 +69,7 @@ const Account = ({ currentUser, setCurrentUser }) => {
         setUsername(data.user.username || "");
         setEmail(data.user.email || "");
         setIsLoading(false);
-        console.log("Current user:", currentUser);
+        console.log("Current user:", user);
         fetch(`http://localhost:3000/api/orders/${data.user.id}`, { headers })
           .then((response) => {
             if (!response.ok) {
@@ -85,7 +84,7 @@ const Account = ({ currentUser, setCurrentUser }) => {
         setError(error.message);
         setIsLoading(false);
       });
-  }, []);
+  }, [setCurrentUser]);
 
   const handleUpdateAccount = async (event) => {
     event.preventDefault();
@@ -193,11 +192,14 @@ const Account = ({ currentUser, setCurrentUser }) => {
       "Content-Type": "application/json",
     };
 
-    const response = await fetch(`/api/products/${productId}`, {
-      method: "DELETE",
-      headers,
-      body: JSON.stringify({ sellerId: currentUser.id }),
-    });
+    const response = await fetch(
+      `http://localhost:3000/api/products/${productId}`,
+      {
+        method: "DELETE",
+        headers,
+        body: JSON.stringify({ sellerId: user.id }),
+      }
+    );
 
     if (response.ok) {
       // Remove the deleted product from the state
@@ -231,8 +233,14 @@ const Account = ({ currentUser, setCurrentUser }) => {
   return (
     <div>
       <h2>Account</h2>
-      <p>Welcome, {currentUser.username}</p>
-      <p>Email: {currentUser.email}</p>
+      {user ? (
+        <>
+          <p>Welcome, {user.username}</p>
+          <p>Email: {user.email}</p>
+        </>
+      ) : (
+        <p>Loading user data...</p>
+      )}
       <h3>Purchase History</h3>
       <ul>
         {purchases.map((purchase) => (
@@ -254,7 +262,7 @@ const Account = ({ currentUser, setCurrentUser }) => {
         <button type="submit">Update</button>
       </form>
       {successMessage && <p>{successMessage}</p>}
-      {currentUser.accounttype === "seller" && (
+      {user && user.accounttype === "seller" && (
         <div>
           <h3>Your Products</h3>
           <ul>
