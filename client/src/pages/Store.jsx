@@ -3,6 +3,32 @@ import { useNavigate } from "react-router-dom";
 import { Link } from "react-router-dom";
 import { UserContext } from "./UserProvider";
 
+// Function to fetch the user's cart from the server
+const fetchUserCart = async (userId) => {
+  const response = await fetch(`/api/cart/${userId}`);
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+  const data = await response.json();
+  return data.cart;
+};
+
+// Function to update the user's cart on the server
+const updateUserCart = async (userId, cart) => {
+  const response = await fetch(`/api/cart/${userId}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ cart }),
+  });
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+  const data = await response.json();
+  return data;
+};
+
 const Product = ({ product, addToCart, buyNow }) => (
   <div key={product.id}>
     <h3>{product.name}</h3>
@@ -32,7 +58,6 @@ const Store = () => {
       localStorage.removeItem("cart");
     }
   };
-
   const addToCart = async (productDetails) => {
     const item = {
       ...productDetails,
@@ -44,14 +69,16 @@ const Store = () => {
       const user_id = user.id;
       // Send a request to the server to update the user's cart
       try {
-        const response = await fetch("/api/cart", {
+        const response = await fetch(`/api/cart/${user_id}`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            item,
-            user_id,
+            item: {
+              product_id: item.id,
+              quantity: item.quantity,
+            },
           }),
         });
 
@@ -77,11 +104,29 @@ const Store = () => {
       setCart((prevCart) => [...prevCart, item]);
     }
   };
+
+  // When a user logs in
+  const login = async (username, password) => {
+    // ... rest of the code
+    // Get the user's cart from the server
+    const userCart = await fetchUserCart(user.id);
+    // Get the guest's cart from local storage
+    const guestCart = JSON.parse(localStorage.getItem("guestCart")) || [];
+    // Merge the guest's cart with the user's cart
+    const mergedCart = [...userCart, ...guestCart];
+    // Update the user's cart on the server
+    await updateUserCart(user.id, mergedCart);
+    // Update the cart in the state
+    setCart(mergedCart);
+    // Clear the guest's cart from local storage
+    localStorage.removeItem("guestCart");
+  };
   // Function to update the cart
   const updateCart = async () => {
     if (!user) {
       return;
     }
+
     // Before sending the request to update the cart, check if user_id and cart are valid
     const user_id = user ? user.id : "guest";
     if (user_id !== "guest" && !/^\d+$/.test(user_id)) {
@@ -94,17 +139,11 @@ const Store = () => {
       return;
     }
 
-    for (const item of cart) {
-      if (!/^\d+$/.test(item.id)) {
-        console.error("Invalid product_id:", item.id);
-        return;
-      }
-
-      if (!Number.isInteger(item.quantity) || item.quantity <= 0) {
-        console.error("Invalid quantity:", item.quantity);
-        return;
-      }
-    }
+    // Convert the cart to the format expected by the server
+    const formattedCart = cart.map((item) => ({
+      product_id: item.id,
+      quantity: item.quantity,
+    }));
 
     // If user_id and cart are valid, send the request to update the cart
     try {
@@ -113,7 +152,7 @@ const Store = () => {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ cart }),
+        body: JSON.stringify({ cart: formattedCart }),
       });
 
       if (!response.ok) {
@@ -125,7 +164,8 @@ const Store = () => {
     } catch (error) {
       console.error(`Error updating cart: ${error}`);
     }
-  }; // This is the closing brace for the updateCart function
+  };
+
   useEffect(() => {
     updateCart();
   }, [cart]);

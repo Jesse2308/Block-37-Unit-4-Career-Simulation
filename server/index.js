@@ -574,10 +574,11 @@ const DELETE_ITEM_FROM_CART = `
   WHERE user_id = $1 AND product_id = $2;
 `;
 // Route to add an item to the cart
-app.post("/api/cart", async (req, res, next) => {
+app.post("/api/cart/:userId", async (req, res, next) => {
   try {
-    // Extract the item and user id from request body
-    const { item, user_id } = req.body;
+    // Extract the item from request body and user id from request parameters
+    const { item } = req.body;
+    const user_id = req.params.userId;
 
     // Check if user_id, item.product_id, and item.quantity are provided
     if (!user_id || !item || !item.product_id || !item.quantity) {
