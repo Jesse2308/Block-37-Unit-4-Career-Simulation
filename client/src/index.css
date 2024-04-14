@@ -22,16 +22,16 @@ body {
 }
 
 .item {
-  display: flex; /* Add this line */
-  align-items: center; /* Add this line */
-  justify-content: center; /* Add this line */
+  display: flex; 
+  align-items: center;
+  justify-content: center;
   flex: 1 0 200px;
   margin: 10px;
   box-sizing: border-box;
-  border: 1px solid #000; /* Add a border */
-  padding: 10px; /* Add some padding */
-  background-color: #fff; /* Add a background color */
-  overflow: hidden; /* Hide the overflow */
+  border: 1px solid #000; 
+  padding: 10px; 
+  background-color: #fff;
+  overflow: hidden; 
 }
 
 img {
@@ -44,9 +44,9 @@ img {
 nav {
   background-color: #f8f9fa;
   padding: 1rem 2rem;
-  margin: 1rem auto; /* Change to auto to center the navbar */
-  width: 80%; /* Reduce the width to 80% of the parent */
-  display: block; /* Add this line */
+  margin: 1rem auto; 
+  width: 80%; 
+  display: block; 
 }
 
 nav a {
@@ -65,23 +65,23 @@ button {
   background-color: #007bff;
   padding: 0.5rem 1rem;
   border: none;
-  border-radius: 0.25rem; /* Rounded corners */
+  border-radius: 0.25rem; 
   cursor: pointer;
-  transition: all 0.3s ease; /* Update to animate all properties */
+  transition: all 0.3s ease; 
   margin: 0.5rem;
-  text-decoration: none; /* Remove underline */
-  font-weight: 600; /* Make text bold */
-  box-shadow: 0px 5px 10px rgba(0, 0, 0, 0.2); /* Add a shadow */
+  text-decoration: none; 
+  font-weight: 600; 
+  box-shadow: 0px 5px 10px rgba(0, 0, 0, 0.2); 
 }
 
 button:hover {
-  background-color: #0056b3; /* Darker blue when hovered */
+  background-color: #0056b3; 
 }
 
 button:active {
-  background-color: #003d80; /* Even darker blue when clicked */
-  box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.2); /* Reduce the shadow */
-  transform: translateY(3px); /* Move the button down */
+  background-color: #003d80; 
+  box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.2); 
+  transform: translateY(3px); 
 }
 
 #view-cart-button {
@@ -91,14 +91,14 @@ button:active {
 }
 .details-button {
   display: inline-block;
-  padding: 5px 10px; /* Reduced padding */
+  padding: 5px 10px; 
   margin-top: 20px;
   border: none;
   background-color: #007bff;
   color: white;
   text-align: center;
   text-decoration: none;
-  font-size: 14px; /* Reduced font size */
+  font-size: 14px; 
   transition: background-color 0.3s ease;
 }
 
@@ -109,5 +109,5 @@ button:active {
 }
 
 button:hover {
-  background-color: #970ed1; /* Darken the button color on hover */
+  background-color: #970ed1; 
 }

@@ -2,6 +2,7 @@ import "./Cart.css";
 import { useEffect, useState } from "react";
 import { useContext } from "react";
 import { UserContext } from "./UserProvider";
+import Checkout from "./Checkout";
 
 const Cart = () => {
   // Context and state variables
@@ -11,7 +12,7 @@ const Cart = () => {
   const [totalPrice, setTotalPrice] = useState(0);
   // Fetch cart items from server or local storage
   useEffect(() => {
-    const userId = user && user.id ? Number(user.id) : "guest";
+    const user_id = user && user.id ? Number(user.id) : "guest";
     const fetchCart = async () => {
       try {
         setLoading(true);
@@ -20,11 +21,13 @@ const Cart = () => {
           const savedCart = localStorage.getItem("guestCart");
           cartItems = savedCart ? JSON.parse(savedCart) : [];
         } else {
-          const response = await fetch(`/api/cart/${userId}`);
+          console.log(`Fetching cart for user_id: ${user_id}`);
+          const response = await fetch(`/api/cart/${user_id}`);
           if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
           }
           const data = await response.json();
+          console.log(`Response data: ${JSON.stringify(data)}`);
           if (data.cart) {
             const products = await Promise.all(
               data.cart.map((item) =>
@@ -36,6 +39,7 @@ const Cart = () => {
                 })
               )
             );
+            console.log(`Products data: ${JSON.stringify(products)}`);
             cartItems = data.cart.map((item, index) => ({
               ...item,
               price: products[index].price,
@@ -209,6 +213,7 @@ const Cart = () => {
         ))
       )}
       <p className="cart-total">Total: ${totalPrice}</p>
+      <Checkout cart={cart} />
     </div>
   );
 };

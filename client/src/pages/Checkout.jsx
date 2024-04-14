@@ -1,36 +1,95 @@
-import React from "react";
-import { CardElement, useStripe, useElements } from "@stripe/react-stripe-js";
+import React, { useEffect } from "react";
+import { loadStripe } from "@stripe/stripe-js";
+import axios from "axios";
+import "./Checkout.css";
+
+// Load Stripe.js as soon as possible
+const stripePromise = loadStripe(
+  "pk_test_51P5GzSGGPEXzDHsTUrABOj0pPjuZGRh1yP190aZolbnq3dGnX9NDhfCIFRXDMn73rIw7x8MMZmrvyAyG2eU1F1q300w5eVUC2v"
+);
 
 const Checkout = () => {
-  const stripe = useStripe();
-  const elements = useElements();
+  let card;
+
+  useEffect(() => {
+    const setupStripe = async () => {
+      const stripe = await stripePromise;
+      const elements = stripe.elements();
+      const card = elements.create("card", {
+        style: {
+          base: {
+            color: "#32325d",
+            fontFamily: '"Helvetica Neue", Helvetica, sans-serif',
+            fontSmoothing: "antialiased",
+            fontSize: "18px", // Increase the font size
+            "::placeholder": {
+              color: "#aab7c4",
+            },
+          },
+          invalid: {
+            color: "#fa755a",
+            iconColor: "#fa755a",
+          },
+        },
+      });
+      card.mount("#card-element");
+    };
+
+    setupStripe();
+  }, []);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
 
-    if (!stripe || !elements) {
+    const stripe = await stripePromise;
+
+    // Create a token with the card details
+    const { token, error } = await stripe.createToken(card);
+
+    if (error) {
+      console.error("Error creating token:", error);
       return;
     }
 
-    const cardElement = elements.getElement(CardElement);
-
-    const { error, paymentMethod } = await stripe.createPaymentMethod({
-      type: "card",
-      card: cardElement,
-    });
-
-    if (error) {
-      console.log("[error]", error);
-    } else {
-      console.log("[PaymentMethod]", paymentMethod);
+    try {
+      // Send the token to your server
+      const { data: session } = await axios.post(
+        "http://localhost:5173/create-checkout-session",
+        {
+          token: token.id,
+        }
+      );
+      // Handle the session data...
+    } catch (error) {
+      console.error("Error in POST /create-checkout-session:", error);
+      // Handle the error...
     }
   };
 
   return (
-    <form onSubmit={handleSubmit}>
-      <CardElement />
-      <button type="submit" disabled={!stripe}>
-        Pay
+    <form onSubmit={handleSubmit} className="checkout-form">
+      <label>
+        Email
+        <input type="email" className="checkout-input" required />
+      </label>
+      <label>
+        Card information
+        <div id="card-element"></div>
+      </label>
+      <label>
+        Cardholder name
+        <input type="text" className="checkout-input" required />
+      </label>
+      <label>
+        Country or region
+        <input type="text" className="checkout-input" required />
+      </label>
+      <label>
+        ZIP
+        <input type="text" className="checkout-input" required />
+      </label>
+      <button type="submit" className="checkout-button">
+        Checkout
       </button>
     </form>
   );

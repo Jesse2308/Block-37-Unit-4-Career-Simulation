@@ -26,41 +26,49 @@ export const UserProvider = ({ children }) => {
   });
 
   // Function to fetch user data
-  const fetchUserData = () => {
-    return new Promise((resolve, reject) => {
-      // Get the token from local storage
-      const token = localStorage.getItem("token");
-      if (!token) {
-        reject("No token found");
-        return;
+  const fetchUserData = async () => {
+    const token = localStorage.getItem("token"); // replace this with the actual way you're storing the token
+
+    console.log("Token retrieved from localStorage:", token);
+
+    if (!token) {
+      console.error("No token in localStorage");
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      const response = await fetch("http://localhost:5173/api/user", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      console.log("Response from /api/user:", response);
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log("Data retrieved from /api/user:", data);
+        setCurrentUser(data.user);
+        setIsLoading(false);
+      } else {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
-      const headers = {
-        Authorization: `Bearer ${token}`,
-      };
-      // Fetch the user data
-      fetch("/api/user", {
-        headers,
-      })
-        .then((response) => {
-          if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-          }
-          return response.json();
-        })
-        .then((data) => {
-          console.log("Fetched data:", data);
-          if (data.success) {
-            resolve(data.user);
-          } else {
-            reject("Failed to fetch user");
-          }
-        })
-        .catch((error) => reject(error));
-    });
+    } catch (error) {
+      console.error("Error in fetchUserData:", error);
+      setIsLoading(false);
+    }
   };
+
+  // When the component mounts, fetch the user data
+  useEffect(() => {
+    console.log("currentUser state in UserProvider:", user);
+    fetchUserData();
+  }, [user]);
 
   // Function to log out
   const logout = () => {
+    console.log("Logging out...");
     // Clear user from state
     setCurrentUser(null);
     // Clear token from state
@@ -70,21 +78,6 @@ export const UserProvider = ({ children }) => {
     localStorage.removeItem("cart");
     // Add any other logout logic you need
   };
-
-  // When the component mounts, fetch the user data
-  useEffect(() => {
-    console.log("currentUser state in UserProvider:", user);
-    fetchUserData()
-      .then((userData) => {
-        setCurrentUser(userData); // Set the user data
-        console.log("User data fetched:", userData);
-        setIsLoading(false); // Set loading to false when the data is fetched
-      })
-      .catch((error) => {
-        console.error(error);
-        setIsLoading(false);
-      });
-  }, []);
 
   // Log the current user's ID whenever the user state changes
   useEffect(() => {

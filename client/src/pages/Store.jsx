@@ -88,6 +88,9 @@ const Store = () => {
 
         const data = await response.json();
         console.log("Item added to cart:", data);
+
+        // Update the cart in the state
+        setCart((prevCart) => [...prevCart, item]);
       } catch (error) {
         console.error(`Error adding item to cart: ${error}`);
       }
