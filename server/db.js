@@ -12,22 +12,35 @@ const client = new pg.Client(
   process.env.DATABASE_URL || "postgres://localhost/acme_jcomApp_db"
 );
 
-// User related functions
-const createUser = async ({ email, password, isAdmin = false }) => {
+// Ensure environment variables are set
+if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+  console.error("Missing environment variables EMAIL_USER or EMAIL_PASS");
+  process.exit(1);
+}
+
+// Define createUser function
+async function createUser({ email, password, isAdmin, accountType }) {
+  // Hash the password before storing it
+  const hashedPassword = await bcrypt.hash(password, 10);
+
+  // Insert the new user into the database
   const SQL = `
-    INSERT INTO users(email, password, isAdmin) VALUES($1, $2, $3) RETURNING *
+    INSERT INTO users (email, password, isadmin, accounttype)
+    VALUES ($1, $2, $3, $4)
+    RETURNING *;
   `;
-  const hashedPassword = await bcrypt.hash(password, 5);
+  const values = [email, hashedPassword, isAdmin, accountType];
+  const result = await client.query(SQL, values);
 
-  // Log the values
-  console.log(
-    `email: ${email}, hashedPassword: ${hashedPassword}, isAdmin: ${isAdmin}`
-  );
+  // Throw an error if the user couldn't be created
+  if (result.rows.length === 0) {
+    throw new Error("Error creating user");
+  }
 
-  const response = await client.query(SQL, [email, hashedPassword, isAdmin]);
-  return response.rows[0];
-};
+  return result.rows[0];
+}
 
+// Create admin account
 async function createAdminAccount() {
   try {
     const admin = await createUser({
@@ -44,8 +57,10 @@ async function createAdminAccount() {
 }
 
 // Call createAdminAccount when the application starts
-createAdminAccount();
-
+createAdminAccount().catch((error) => {
+  console.error("Error creating admin account:", error);
+  process.exit(1);
+});
 const register = async ({ email, password, isAdmin = false }) => {
   // Check if a user with the given email already exists
   const checkSQL = `
@@ -72,7 +87,7 @@ const register = async ({ email, password, isAdmin = false }) => {
     from: process.env.EMAIL_USER,
     to: user.email,
     subject: "Email Verification",
-    text: `Please verify your email address by clicking the following link: http://localhost:5173/verify-email?token=${user.emailToken}`,
+    text: `Please verify your email address by clicking the following link: http://localhost:3000/verify-email?token=${user.emailToken}`,
   };
   await transporter.sendMail(mailOptions);
 
@@ -93,15 +108,38 @@ const isAdmin = async (userId) => {
 };
 
 // Admin account creation
+// Admin account creation
 async function createAdminAccount() {
   try {
-    const admin = await createUser({
-      email: process.env.EMAIL_USER,
-      password: process.env.EMAIL_PASS,
-      isAdmin: true,
-    });
+    const SQL = `
+      SELECT * FROM users WHERE email = $1;
+    `;
+    const values = ["tinkersecom@gmail.com"];
+    const result = await client.query(SQL, values);
 
-    console.log("Admin account created:", admin);
+    if (result.rows.length > 0) {
+      const user = result.rows[0];
+
+      // User with this email already exists
+      if (user.isadmin) {
+        // User is already an admin, do nothing
+        return;
+      } else {
+        // User is not an admin, update their isadmin column
+        const updateSQL = `
+          UPDATE users SET isadmin = true WHERE email = $1;
+        `;
+        await client.query(updateSQL, values);
+      }
+    } else {
+      // User with this email doesn't exist, create a new user
+      await createUser({
+        email: "tinkersecom@gmail.com",
+        password: "admin123",
+        isAdmin: true,
+        accountType: "admin",
+      });
+    }
   } catch (error) {
     console.error("Error creating admin account:", error);
   }
@@ -215,11 +253,16 @@ const createUserTable = async () => {
     password VARCHAR(255) NOT NULL,
     accountType VARCHAR(255) NOT NULL,
     emailToken VARCHAR(255),
-    verified BOOLEAN DEFAULT false,
-    isAdmin BOOLEAN DEFAULT false
+    verified BOOLEAN DEFAULT false
   );
   `;
   await client.query(SQL);
+
+  const alterSQL = `
+  ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS isadmin BOOLEAN DEFAULT false;
+  `;
+  await client.query(alterSQL);
 };
 const createGuestCartTable = async () => {
   const SQL = `

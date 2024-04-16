@@ -64,7 +64,7 @@ export const UserProvider = ({ children }) => {
   useEffect(() => {
     console.log("currentUser state in UserProvider:", user);
     fetchUserData();
-  }, [user]);
+  }, []);
 
   // Function to log out
   const logout = () => {
@@ -82,7 +82,7 @@ export const UserProvider = ({ children }) => {
   // Log the current user's ID whenever the user state changes
   useEffect(() => {
     console.log("Current user ID in UserProvider:", user ? user.id : "No user");
-  }, [user]);
+  }, []);
 
   // Provide the user data to children
   return (

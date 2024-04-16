@@ -15,8 +15,6 @@ const Login = () => {
     cart,
     setCart,
   } = useContext(UserContext);
-  console.log("setCurrentUser function in Login:", setCurrentUser);
-  console.log("currentUser state in Login:", user);
   const [localEmail, setLocalEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -26,53 +24,52 @@ const Login = () => {
 
   const updateCartOnServer = async (cart, userData) => {
     try {
-      const response = await fetch(
-        `http://localhost:3000/api/cart/${userData.user.id}`,
-        {
-          method: "POST", // or 'POST'
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(cart),
-        }
-      );
+      const response = await fetch(`/api/cart/${userData.user.id}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(cart),
+      });
       if (!response.ok) {
-        throw new Error("Network response was not ok");
+        throw new Error("There was an issue updating the cart on the server.");
       }
       const cartData = await response.json();
-      console.log(response);
-      console.log(cartData);
     } catch (error) {
       console.error("Fetch error:", error);
     }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setError(null);
+  const validateInputs = () => {
     // Validate email
     if (!localEmail) {
       setError("Email is required");
-      return;
+      return false;
     } else if (!/\S+@\S+\.\S+/.test(localEmail)) {
       setError("Email is invalid");
-      return;
+      return false;
     }
 
     // Validate password
     if (!password) {
       setError("Password is required");
-      return;
+      return false;
     } else if (password.length < 3) {
       setError("Password must be at least 3 characters");
-      return;
+      return false;
     }
+    return true;
+  };
+
+  const handleLogin = async () => {
     setIsLoading(true);
     setError(null);
+    if (!validateInputs()) {
+      setIsLoading(false);
+      return;
+    }
     try {
-      console.log(`Email: ${localEmail}, Password: ${password}`);
-      const response = await fetch("http://localhost:3000/api/login", {
+      const response = await fetch("/api/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -81,77 +78,82 @@ const Login = () => {
       });
 
       if (!response.ok) {
-        throw new Error(`Network response was not ok: ${response.statusText}`);
+        throw new Error(`There was an issue logging in. Please try again.`);
       }
       let data;
       const contentType = response.headers.get("content-type");
       if (contentType && contentType.includes("application/json")) {
         data = await response.json();
-        console.log(data);
       } else {
-        console.error("Unexpected response:", await response.text());
+        throw new Error("Unexpected server response. Please try again.");
       }
 
       localStorage.setItem("token", data.token);
       localStorage.setItem("email", data.email);
       setToken(data.token);
       setEmail(data.email);
-      // Fetch the current user's data
-      const userResponse = await fetch("/api/user", {
-        headers: {
-          Authorization: `Bearer ${data.token}`,
-        },
-      });
-      if (!userResponse.ok) {
-        throw new Error("Network response was not ok");
-      }
-      const userContentType = userResponse.headers.get("content-type");
-      let userData;
-      if (userContentType && userContentType.includes("application/json")) {
-        userData = await userResponse.json();
-        console.log("User data fetched:", userData);
-        setCurrentUser(userData); // Set the currentUser state
-      } else {
-        console.error("Unexpected response:", await userResponse.text());
-      }
-      // Set the currentUser state
-      setCurrentUser(userData);
-      let cart = localStorage.getItem("cart");
-      let mergedCart;
-      if (cart && data.user) {
-        cart = JSON.parse(cart);
-        // Fetch the user's cart from the server
-        const cartResponse = await fetch(
-          `http://localhost:3000/api/cart/${data.user.id}`
-        );
-        if (!cartResponse.ok) {
-          throw new Error("Network response was not ok");
-        }
-        const cartData = await cartResponse.json();
-        const userCart = Array.isArray(cartData) ? cartData : [];
-        // Merge the local cart with the user's cart from the server
-        mergedCart = [...userCart, ...cart];
-        // Update the user's cart on the server
-        await updateCartOnServer({ cart: mergedCart }, data);
-        // Clear the cart in local storage
-        localStorage.removeItem("cart");
-      }
+      await fetchUserData(data.token);
+      await handleCart(data);
       // Redirect to the account page
       navigate("/account");
     } catch (error) {
-      console.error("Fetch error:", error);
       setError(error.message);
     } finally {
       setIsLoading(false);
     }
   };
+
+  const fetchUserData = async (token) => {
+    // Fetch the current user's data
+    const userResponse = await fetch("/api/user", {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    if (!userResponse.ok) {
+      throw new Error("There was an issue fetching user data.");
+    }
+    const userContentType = userResponse.headers.get("content-type");
+    let userData;
+    if (userContentType && userContentType.includes("application/json")) {
+      userData = await userResponse.json();
+      setCurrentUser(userData); // Set the currentUser state
+    } else {
+      throw new Error("Unexpected server response. Please try again.");
+    }
+  };
+
+  const handleCart = async (data) => {
+    let cart = localStorage.getItem("cart");
+    let mergedCart;
+    if (cart && data.user) {
+      cart = JSON.parse(cart);
+      const cartResponse = await fetch(`/api/cart/${data.user.id}`);
+      if (!cartResponse.ok) {
+        throw new Error("There was an issue fetching the cart.");
+      }
+      const cartData = await cartResponse.json();
+      const userCart = Array.isArray(cartData) ? cartData : [];
+      mergedCart = [...userCart, ...cart];
+      if (mergedCart.length > 0) {
+        await updateCartOnServer({ cart: mergedCart }, data);
+      }
+      localStorage.removeItem("cart");
+    }
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    handleLogin();
+  };
+
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (token) {
       // If the token is present, set it in the state
       navigate("/account");
     }
-  }, [navigate]);
+  }, []);
 
   return (
     <div className="login">
