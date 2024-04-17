@@ -3,14 +3,25 @@ const pg = require("pg");
 const bcrypt = require("bcrypt");
 const nodemailer = require("nodemailer");
 const jwt = require("jsonwebtoken");
+const { Pool } = pg;
 
 // Constants
 const JWT_SECRET = process.env.JWT_SECRET;
 
 // Database client
-const client = new pg.Client(
-  process.env.DATABASE_URL || "postgres://localhost/acme_jcomApp_db"
-);
+const client = new Pool({
+  connectionString:
+    process.env.DATABASE_URL || "postgres://localhost/acme_jcomApp_db",
+});
+
+// Connect to the database
+client.connect((err) => {
+  if (err) {
+    console.error("Connection error", err.stack);
+  } else {
+    console.log("Connected to the database");
+  }
+});
 
 // Ensure environment variables are set
 if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
@@ -61,6 +72,8 @@ createAdminAccount().catch((error) => {
   console.error("Error creating admin account:", error);
   process.exit(1);
 });
+
+// Register a new user
 const register = async ({ email, password, isAdmin = false }) => {
   // Check if a user with the given email already exists
   const checkSQL = `
@@ -74,6 +87,7 @@ const register = async ({ email, password, isAdmin = false }) => {
   // If not, insert the new user
   const user = await createUser({ email, password, isAdmin });
 
+  // Send a verification email
   const transporter = nodemailer.createTransport({
     host: "smtp.gmail.com",
     port: 587,
@@ -94,6 +108,7 @@ const register = async ({ email, password, isAdmin = false }) => {
   return user;
 };
 
+// Check if a user is an admin
 const isAdmin = async (userId) => {
   const SQL = `
     SELECT isAdmin FROM users WHERE id=$1;
@@ -107,7 +122,6 @@ const isAdmin = async (userId) => {
   return true;
 };
 
-// Admin account creation
 // Admin account creation
 async function createAdminAccount() {
   try {
@@ -145,6 +159,7 @@ async function createAdminAccount() {
   }
 }
 
+// Setup routes for the application
 function setupRoutes(app) {
   app.get("/admin/products", adminOnly, async (req, res) => {
     const products = await fetchProducts();
@@ -152,7 +167,7 @@ function setupRoutes(app) {
   });
 }
 
-// Middleware
+// Middleware to check if the user is an admin
 const adminOnly = async (req, res, next) => {
   const token = req.headers.authorization.split(" ")[1];
   const user = await findUserWithToken(token);
@@ -163,6 +178,8 @@ const adminOnly = async (req, res, next) => {
   }
   next();
 };
+
+// Fetch all products
 const fetchProducts = async () => {
   const SQL = `
   SELECT * FROM products;
@@ -170,6 +187,8 @@ const fetchProducts = async () => {
   const response = await client.query(SQL);
   return response.rows;
 };
+
+// Edit a product
 const editProduct = async (productId, productData) => {
   const { name, category, price, description, image, stock } = productData;
   const SQL = `
@@ -190,6 +209,7 @@ const editProduct = async (productId, productData) => {
   return response.rows[0];
 };
 
+// Fetch all users
 const fetchUsers = async () => {
   const SQL = `
   SELECT * FROM users;
@@ -198,6 +218,7 @@ const fetchUsers = async () => {
   return response.rows;
 };
 
+// Authenticate a user
 const authenticate = async ({ email, password }) => {
   const SQL = `
   SELECT id, email, password FROM users WHERE email=$1;
@@ -215,6 +236,7 @@ const authenticate = async ({ email, password }) => {
   return { token };
 };
 
+// Find a user with a given token
 const findUserWithToken = async (token) => {
   let id;
   try {
@@ -236,6 +258,8 @@ const findUserWithToken = async (token) => {
   }
   return response.rows[0];
 };
+
+// Fetch all admin users
 const fetchuserAdmin = async () => {
   const SQL = `
   SELECT id, email FROM users;
@@ -264,6 +288,18 @@ const createUserTable = async () => {
   `;
   await client.query(alterSQL);
 };
+
+// Get a user by their ID
+async function getUserById(userId) {
+  const SQL = `
+    SELECT * FROM users WHERE id = $1;
+  `;
+  const response = await client.query(SQL, [userId]);
+  if (response.rows.length === 0) {
+    throw new Error("User not found");
+  }
+  return response.rows[0];
+}
 const createGuestCartTable = async () => {
   const SQL = `
     CREATE TABLE IF NOT EXISTS guest_cart (
@@ -544,4 +580,5 @@ module.exports = {
   fetchuserAdmin,
   setupRoutes,
   createGuestCartTable,
+  getUserById,
 };

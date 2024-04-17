@@ -4,7 +4,7 @@ const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
 const nodemailer = require("nodemailer");
 const crypto = require("crypto");
-const client = require("./db");
+const { client, getUserById } = require("./db");
 
 // Create Express router
 const authRoutes = express.Router();
@@ -24,13 +24,13 @@ const transporter = nodemailer.createTransport({
 authRoutes.post("/register", registerUser);
 
 // User login route
-authRoutes.post("/api/login", loginUser);
+authRoutes.post("/login", loginUser);
 
 // Get current user route
 authRoutes.get("/me", getCurrentUser);
 
 // Update user details route
-authRoutes.put("/api/user", updateUserDetails);
+authRoutes.put("/user", updateUserDetails);
 
 // Export the router
 module.exports = authRoutes;
@@ -88,13 +88,22 @@ async function loginUser(req, res, next) {
   }
 }
 
-async function getCurrentUser(req, res, next) {
-  const token = req.headers.authorization.split(" ")[1];
+async function getCurrentUser(req, res) {
   try {
+    const authHeader = req.headers.authorization;
+    console.log("Auth header:", authHeader); // Log the auth header
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      res.status(401).send({ success: false, message: "Unauthorized" });
+      return;
+    }
+    const token = authHeader.split(" ")[1];
     const payload = jwt.verify(token, process.env.JWT_SECRET);
+    console.log("Payload:", payload); // Log the payload
     const user = await getUserById(payload.userId);
+    console.log("User:", user); // Log the user
     res.send({ success: true, user });
   } catch (error) {
+    console.error("Error:", error); // Log the error
     res.status(401).send({ success: false, message: "Unauthorized" });
   }
 }

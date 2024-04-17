@@ -4,12 +4,15 @@ import { useContext } from "react";
 import { UserContext } from "./UserProvider";
 import Checkout from "./Checkout";
 
+const BASE_URL = "http://localhost:3000";
+
 const Cart = () => {
   // Context and state variables
-  const { user, cart, setCart } = useContext(UserContext);
+  const { user, cart, setCart, fetchUserCart } = useContext(UserContext);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [totalPrice, setTotalPrice] = useState(0);
+
   // Fetch cart items from server or local storage
   useEffect(() => {
     const user_id = user && user.id ? Number(user.id) : "guest";
@@ -22,31 +25,7 @@ const Cart = () => {
           cartItems = savedCart ? JSON.parse(savedCart) : [];
         } else {
           console.log(`Fetching cart for user_id: ${user_id}`);
-          const response = await fetch(`/api/cart/${user_id}`);
-          if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-          }
-          const data = await response.json();
-          console.log(`Response data: ${JSON.stringify(data)}`);
-          if (data.cart) {
-            const products = await Promise.all(
-              data.cart.map((item) =>
-                fetch(`/api/products/${item.item_id}`).then((res) => {
-                  if (!res.ok) {
-                    throw new Error(`HTTP error! status: ${res.status}`);
-                  }
-                  return res.json();
-                })
-              )
-            );
-            console.log(`Products data: ${JSON.stringify(products)}`);
-            cartItems = data.cart.map((item, index) => ({
-              ...item,
-              price: products[index].price,
-              image: products[index].image,
-              id: products[index].id,
-            }));
-          }
+          cartItems = await fetchUserCart(user_id);
         }
         setCart(cartItems);
         console.log("Cart items fetched:", cartItems);
@@ -113,13 +92,16 @@ const Cart = () => {
   // Update cart on server
   const updateCartOnServer = async (product_id, updatedItem) => {
     try {
-      const response = await fetch(`/api/cart/${Number(product_id)}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(updatedItem),
-      });
+      const response = await fetch(
+        `${BASE_URL}/api/cart/${Number(product_id)}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(updatedItem),
+        }
+      );
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -155,7 +137,7 @@ const Cart = () => {
           `Attempting to remove product with id ${product_id} from cart...`
         );
         const response = await fetch(
-          `/api/cart/${userId}/${Number(product_id)}`,
+          `${BASE_URL}/api/cart/${userId}/${Number(product_id)}`,
           {
             method: "DELETE",
             headers,
@@ -171,6 +153,7 @@ const Cart = () => {
       console.error(`Error removing item: ${error}`);
     }
   };
+
   // Loading and error handling
   if (loading) {
     return <p>Loading...</p>;

@@ -1,6 +1,8 @@
 import { useEffect, useState, useContext } from "react";
 import { UserContext } from "./UserProvider";
 
+const BASE_URL = "http://localhost:3000";
+
 const Account = () => {
   const { user, setCurrentUser } = useContext(UserContext);
   const [isLoading, setIsLoading] = useState(true);
@@ -17,11 +19,15 @@ const Account = () => {
   const [products, setProducts] = useState([]);
   const [successMessage, setSuccessMessage] = useState("");
 
+  // Fetch the user's details
   useEffect(() => {
+    console.log("Fetching user details...");
     const token = localStorage.getItem("token");
 
     if (!token) {
+      console.log("No token found");
       setError("No token found");
+      setIsLoading(false);
       return;
     }
 
@@ -29,9 +35,7 @@ const Account = () => {
       Authorization: `Bearer ${token}`,
     };
 
-    fetch(`http://localhost:3000/api/user`, {
-      headers,
-    })
+    fetch(`${BASE_URL}/api/me`, { headers })
       .then((response) => {
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
@@ -39,22 +43,39 @@ const Account = () => {
         return response.json();
       })
       .then((data) => {
-        console.log("Fetched data:", data);
-        if (data.success) {
+        if (data && data.user) {
+          console.log("User details fetched successfully");
           setCurrentUser(data.user);
-          setIsLoading(false);
+          setUsername(data.user.username || "");
+          setEmail(data.user.email || "");
+          console.log("Current user:", data.user);
         } else {
-          console.error("Failed to fetch user:", data.message);
+          console.log("User not found");
+          setError("User not found");
+          setIsLoading(false);
         }
       })
-      .catch((error) => setError(error.message));
+      .catch((error) => {
+        console.log("Error fetching user details:", error.message);
+        setError(error.message);
+        setIsLoading(false);
+      });
   }, []);
 
+  // Fetch the user's orders
   useEffect(() => {
+    if (!user) {
+      console.log("User not set, skipping fetch for orders");
+      return;
+    }
+
+    console.log("Fetching orders...");
     const token = localStorage.getItem("token");
 
     if (!token) {
+      console.log("No token found");
       setError("No token found");
+      setIsLoading(false);
       return;
     }
 
@@ -62,31 +83,32 @@ const Account = () => {
       Authorization: `Bearer ${token}`,
     };
 
-    fetch("http://localhost:3000/api/me", { headers })
-      .then((response) => response.json())
+    fetch(`${BASE_URL}/api/orders/${user.id}`, { headers })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+      })
       .then((data) => {
-        setCurrentUser(data.user);
-        setUsername(data.user.username || "");
-        setEmail(data.user.email || "");
+        if (Array.isArray(data) && data.length > 0) {
+          console.log("Orders fetched successfully");
+          setPurchases(data);
+        } else {
+          console.log("No orders found");
+          setPurchases([]);
+        }
         setIsLoading(false);
-        console.log("Current user:", user);
-        fetch(`http://localhost:3000/api/orders/${data.user.id}`, { headers })
-          .then((response) => {
-            if (!response.ok) {
-              throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            return response.json();
-          })
-          .then((data) => setPurchases(data))
-          .catch((error) => setError(error.message));
       })
       .catch((error) => {
+        console.log("Error fetching orders:", error.message);
         setError(error.message);
         setIsLoading(false);
       });
-  }, [setCurrentUser]);
+  }, [user]);
 
   const handleUpdateAccount = async (event) => {
+    console.log("Handling account update");
     event.preventDefault();
 
     if (!username || !email) {
@@ -106,7 +128,7 @@ const Account = () => {
       "Content-Type": "application/json",
     };
 
-    fetch("http://localhost:3000/api/user", {
+    fetch(`${BASE_URL}/api/me`, {
       method: "PUT",
       headers,
       body: JSON.stringify({ username, email }),
@@ -125,6 +147,7 @@ const Account = () => {
   };
 
   const handleAddProduct = async (event) => {
+    console.log("Handling product addition");
     event.preventDefault();
 
     if (
@@ -150,7 +173,7 @@ const Account = () => {
       "Content-Type": "application/json",
     };
 
-    fetch("http://localhost:3000/api/products", {
+    fetch(`${BASE_URL}api/products`, {
       method: "POST",
       headers,
       body: JSON.stringify({
@@ -181,6 +204,7 @@ const Account = () => {
   };
 
   const deleteProduct = async (productId) => {
+    console.log("Deleting product with ID:", productId);
     const token = localStorage.getItem("token");
 
     if (!token) {
@@ -192,14 +216,11 @@ const Account = () => {
       "Content-Type": "application/json",
     };
 
-    const response = await fetch(
-      `http://localhost:3000/api/products/${productId}`,
-      {
-        method: "DELETE",
-        headers,
-        body: JSON.stringify({ sellerId: user.id }),
-      }
-    );
+    const response = await fetch(`${BASE_URL}/api/products/${productId}`, {
+      method: "DELETE",
+      headers,
+      body: JSON.stringify({ sellerId: user.id }),
+    });
 
     if (response.ok) {
       // Remove the deleted product from the state
@@ -266,14 +287,18 @@ const Account = () => {
         <div>
           <h3>Your Products</h3>
           <ul>
-            {products.map((product) => (
-              <li key={product.id}>
-                {product.name} - ${product.price}
-                <button onClick={() => deleteProduct(product.id)}>
-                  Delete
-                </button>
-              </li>
-            ))}
+            {products && products.length > 0 ? (
+              products.map((product) => (
+                <li key={product.id}>
+                  {product.name} - ${product.price}
+                  <button onClick={() => deleteProduct(product.id)}>
+                    Delete
+                  </button>
+                </li>
+              ))
+            ) : (
+              <p>No products found</p>
+            )}
           </ul>
           <h3>Add Product</h3>
           <form onSubmit={handleAddProduct}>

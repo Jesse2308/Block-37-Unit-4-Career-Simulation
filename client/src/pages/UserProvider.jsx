@@ -1,8 +1,51 @@
 import { createContext, useState, useEffect } from "react";
+const BASE_URL = "http://localhost:3000";
 
 // Create a context for user data
 export const UserContext = createContext();
 
+// Fetch and update cart functions
+const fetchUserCart = async (user_id) => {
+  // Check if user_id is provided
+  if (!user_id) {
+    console.error("Missing user_id");
+    return;
+  }
+  const response = await fetch(`${BASE_URL}/api/cart/${user_id}`);
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+  const data = await response.json();
+
+  if (!data.cart || data.cart.length === 0) {
+    console.log("User has no items in cart");
+  } else {
+    console.log(`Fetched user cart: ${JSON.stringify(data.cart)}`);
+  }
+
+  return data.cart;
+};
+
+const updateUserCart = async (user_id, cart) => {
+  // Check if user_id and cart are provided
+  if (!user_id || !cart) {
+    console.error("Missing user_id or cart");
+    return;
+  }
+  const response = await fetch(`${BASE_URL}/api/cart/${user_id}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ user_id, cart }), // Send user_id and cart in the request body
+  });
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+  const data = await response.json();
+  console.log(`Updated user cart: ${JSON.stringify(data)}`);
+  return data;
+};
 // This component provides user data to its children
 export const UserProvider = ({ children }) => {
   // User state
@@ -38,17 +81,17 @@ export const UserProvider = ({ children }) => {
     }
 
     try {
-      const response = await fetch("http://localhost:5173/api/user", {
+      const response = await fetch(`${BASE_URL}/api/me`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
 
-      console.log("Response from /api/user:", response);
+      console.log("Response from /api/me:", response);
 
       if (response.ok) {
         const data = await response.json();
-        console.log("Data retrieved from /api/user:", data);
+        console.log("Data retrieved from /api/me:", data);
         setCurrentUser(data.user);
         setIsLoading(false);
       } else {
@@ -59,6 +102,13 @@ export const UserProvider = ({ children }) => {
       setIsLoading(false);
     }
   };
+  useEffect(() => {
+    if (user && user.id) {
+      updateUserCart(user.id, cart)
+        .then(() => console.log("Cart updated on server"))
+        .catch((error) => console.error("Error updating cart:", error));
+    }
+  }, [cart, user]);
 
   // When the component mounts, fetch the user data
   useEffect(() => {
@@ -98,6 +148,9 @@ export const UserProvider = ({ children }) => {
         setEmail,
         cart,
         setCart,
+        fetchUserData,
+        fetchUserCart,
+        updateUserCart,
       }}
     >
       {children}

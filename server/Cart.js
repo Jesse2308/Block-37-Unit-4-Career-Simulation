@@ -1,7 +1,6 @@
 const express = require("express");
-const client = require("./db");
 
-// Create Express router
+const { client } = require("./db");
 const cartRoutes = express.Router();
 
 // SQL queries for cart operations
@@ -25,7 +24,7 @@ const DELETE_ITEM_FROM_CART = `
 `;
 
 // Route to add an item to the cart
-cartRoutes.post("/api/cart/:userId", async (req, res, next) => {
+cartRoutes.post("/cart/:user_id", async (req, res, next) => {
   try {
     const { user_id, product_id } = req.body;
     if (!user_id || !product_id) {
@@ -43,29 +42,34 @@ cartRoutes.post("/api/cart/:userId", async (req, res, next) => {
     next(err);
   }
 });
-
 // Route to get a user's cart
-cartRoutes.get("/api/cart/:user_id", async (req, res, next) => {
+cartRoutes.get("/cart/:user_id", async (req, res, next) => {
   try {
     // Extract user_id from request parameters
     const { user_id } = req.params;
 
-    // SQL query to fetch the user's cart
-    const SQL = `
-        SELECT * FROM cart
-        WHERE user_id = $1;
-        `;
-    const response = await client.query(SQL, [user_id]);
+    // Check if user_id is provided
+    if (!user_id) {
+      res.status(400).send({ success: false, message: "Missing user_id" });
+      return;
+    }
 
-    // Send the cart
-    res.send(response.rows);
-  } catch (error) {
-    next(error);
+    // SQL query to get the user's cart
+    const userCart = await client.query(SELECT_FROM_CART, [user_id]);
+
+    // If the cart is empty, return an empty array
+    if (userCart.rows.length === 0) {
+      res.status(200).json({ cart: [] });
+    } else {
+      // Send the user's cart
+      res.status(200).json({ cart: userCart.rows });
+    }
+  } catch (err) {
+    next(err);
   }
 });
-
 // Route to update a user's cart
-cartRoutes.put("/api/cart/:user_id", async (req, res, next) => {
+cartRoutes.put("/cart/:user_id", async (req, res, next) => {
   try {
     const { user_id, cart } = req.body;
     if (!user_id || !cart) {
@@ -89,7 +93,7 @@ cartRoutes.put("/api/cart/:user_id", async (req, res, next) => {
 });
 
 // Route to remove an item from the cart
-cartRoutes.delete("/api/cart/:user_id/:product_id", async (req, res, next) => {
+cartRoutes.delete("/cart/:user_id/:product_id", async (req, res, next) => {
   try {
     // Extract user_id and product_id from request parameters
     const { user_id, product_id } = req.params;
@@ -103,10 +107,10 @@ cartRoutes.delete("/api/cart/:user_id/:product_id", async (req, res, next) => {
     }
 
     // SQL query to delete the item from the cart
-    const deletedCartItem = await client.query(
-      "DELETE FROM cart WHERE user_id = $1 AND product_id = $2 RETURNING *",
-      [user_id, product_id]
-    );
+    const deletedCartItem = await client.query(DELETE_ITEM_FROM_CART, [
+      user_id,
+      product_id,
+    ]);
 
     // Send the deleted item
     res.status(200).json(deletedCartItem.rows[0]);
@@ -114,7 +118,30 @@ cartRoutes.delete("/api/cart/:user_id/:product_id", async (req, res, next) => {
     next(err);
   }
 });
-//Error handling middleware
+
+// Route to remove all items from the cart
+cartRoutes.delete("/cart/:user_id", async (req, res, next) => {
+  try {
+    // Extract user_id from request parameters
+    const { user_id } = req.params;
+
+    // Check if user_id is provided
+    if (!user_id) {
+      res.status(400).send({ success: false, message: "Missing user_id" });
+      return;
+    }
+
+    // SQL query to delete all items from the cart
+    await client.query(DELETE_FROM_CART, [user_id]);
+
+    // Send a success message
+    res.status(200).json({ success: true, message: "Cart cleared" });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Error handling middleware
 cartRoutes.use((err, req, res, next) => {
   // Log the error stack trace to the console
   console.error(err.stack);
@@ -127,4 +154,5 @@ cartRoutes.use((err, req, res, next) => {
     res.status(500).send({ error: err.message });
   }
 });
+
 module.exports = cartRoutes;

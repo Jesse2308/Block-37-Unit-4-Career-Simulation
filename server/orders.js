@@ -1,11 +1,38 @@
 const express = require("express");
-const client = require("./db");
+const jwt = require("jsonwebtoken");
+const { getUserById, client } = require("./db");
 
 // Create Express router
 const orderRoutes = express.Router();
 
+// Middleware to check if user is admin
+async function isAdmin(req, res, next) {
+  try {
+    // Extract the token from the Authorization header
+    const token = req.headers.authorization.split(" ")[1];
+
+    // Verify the token
+    const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
+
+    // Extract the user id from the token
+    const user_id = decodedToken.user_id;
+
+    // Fetch the user from the database
+    const user = await getUserById(user_id);
+
+    // If user is an admin, proceed to the next middleware, else send an error message
+    if (user && user.isAdmin) {
+      next();
+    } else {
+      res.status(403).json({ message: "Forbidden" });
+    }
+  } catch {
+    res.status(403).json({ message: "Forbidden" });
+  }
+}
+
 // Route to create an order
-orderRoutes.post("/api/order", async (req, res, next) => {
+orderRoutes.post("/api/order", isAdmin, async (req, res, next) => {
   try {
     // Extract user_id from request body
     const { user_id } = req.body;
@@ -30,27 +57,32 @@ orderRoutes.post("/api/order", async (req, res, next) => {
 });
 
 // Route to fetch a user's orders
-orderRoutes.get("/api/orders/:user_id", async (req, res, next) => {
+orderRoutes.get("/api/orders/:user_id", isAdmin, async (req, res, next) => {
   try {
     // Extract user_id from request parameters
     const { user_id } = req.params;
 
     // SQL query to fetch the user's orders
     const SQL = `
-        SELECT * FROM orders
-        WHERE user_id = $1;
-        `;
+      SELECT * FROM orders
+      WHERE user_id = $1;
+      `;
     const response = await client.query(SQL, [user_id]);
 
-    // Send the orders
-    res.send(response.rows);
+    // If there are no orders for the user, return an empty array
+    if (response.rows.length === 0) {
+      res.json([]);
+    } else {
+      // Send the orders
+      res.json(response.rows);
+    }
   } catch (error) {
     next(error);
   }
 });
 
 // Route to add a product to an order
-orderRoutes.post("/api/order_product", async (req, res, next) => {
+orderRoutes.post("/api/order_product", isAdmin, async (req, res, next) => {
   try {
     // Extract order_id and product_id from request body
     const { order_id, product_id } = req.body;

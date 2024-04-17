@@ -1,6 +1,5 @@
 const express = require("express");
 const adminRoutes = express.Router();
-
 // Middleware to check if user is admin
 async function isAdmin(req, res, next) {
   try {
@@ -36,6 +35,7 @@ adminRoutes.get("/products", isAdmin, async (req, res) => {
   res.json(products);
 });
 
+// Add a new product to the database as an admin
 adminRoutes.post("/products", isAdmin, async (req, res) => {
   try {
     // Extract product details from request body
@@ -58,7 +58,7 @@ adminRoutes.post("/products", isAdmin, async (req, res) => {
     res.status(400).json({ message: err.message });
   }
 });
-
+// Update a product in the database as an admin
 adminRoutes.put("/products/:id", isAdmin, async (req, res) => {
   try {
     // Extract product details from request body

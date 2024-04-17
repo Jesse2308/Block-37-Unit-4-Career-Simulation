@@ -3,31 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Link } from "react-router-dom";
 import { UserContext } from "./UserProvider";
 
-// Function to fetch the user's cart from the server
-const fetchUserCart = async (userId) => {
-  const response = await fetch(`/api/cart/${userId}`);
-  if (!response.ok) {
-    throw new Error(`HTTP error! status: ${response.status}`);
-  }
-  const data = await response.json();
-  return data.cart;
-};
-
-// Function to update the user's cart on the server
-const updateUserCart = async (userId, cart) => {
-  const response = await fetch(`/api/cart/${userId}`, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ cart }),
-  });
-  if (!response.ok) {
-    throw new Error(`HTTP error! status: ${response.status}`);
-  }
-  const data = await response.json();
-  return data;
-};
+const BASE_URL = "http://localhost:3000";
 
 const Product = ({ product, addToCart, buyNow }) => (
   <div key={product.id}>
@@ -47,17 +23,7 @@ const Store = () => {
   const [error, setError] = useState(null);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    localStorage.setItem("cart", JSON.stringify(cart));
-  }, [cart]);
-
-  const viewCart = () => {
-    navigate("/cart");
-    let cartItems = JSON.parse(localStorage.getItem("cart"));
-    if (cartItems && user) {
-      localStorage.removeItem("cart");
-    }
-  };
+  // Cart related functions
   const addToCart = async (productDetails) => {
     const item = {
       ...productDetails,
@@ -108,28 +74,10 @@ const Store = () => {
     }
   };
 
-  // When a user logs in
-  const login = async (username, password) => {
-    // ... rest of the code
-    // Get the user's cart from the server
-    const userCart = await fetchUserCart(user.id);
-    // Get the guest's cart from local storage
-    const guestCart = JSON.parse(localStorage.getItem("guestCart")) || [];
-    // Merge the guest's cart with the user's cart
-    const mergedCart = [...userCart, ...guestCart];
-    // Update the user's cart on the server
-    await updateUserCart(user.id, mergedCart);
-    // Update the cart in the state
-    setCart(mergedCart);
-    // Clear the guest's cart from local storage
-    localStorage.removeItem("guestCart");
-  };
-  // Function to update the cart
   const updateCart = async () => {
     if (!user) {
       return;
     }
-
     // Before sending the request to update the cart, check if user_id and cart are valid
     const user_id = user ? user.id : "guest";
     if (user_id !== "guest" && !/^\d+$/.test(user_id)) {
@@ -169,10 +117,32 @@ const Store = () => {
     }
   };
 
-  useEffect(() => {
-    updateCart();
-  }, [cart]);
+  const viewCart = () => {
+    navigate("/cart");
+    let cartItems = JSON.parse(localStorage.getItem("cart"));
+    if (cartItems && user) {
+      localStorage.removeItem("cart");
+    }
+  };
+  // Fetch products function
+  const fetchProducts = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const response = await fetch(`${BASE_URL}/api/products`);
+      if (!response.ok) {
+        throw new Error("Failed to fetch products");
+      }
+      const data = await response.json();
+      setProducts(data);
+    } catch (error) {
+      setError(error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
+  // Buy now function
   const buyNow = (product) => {
     const updatedProduct = {
       ...product,
@@ -187,27 +157,20 @@ const Store = () => {
     alert("You have purchased this item: " + product.name);
   };
 
-  const fetchProducts = async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const response = await fetch("http://localhost:3000/api/products");
-      if (!response.ok) {
-        throw new Error("Failed to fetch products");
-      }
-      const data = await response.json();
-      setProducts(data);
-    } catch (error) {
-      setError(error.message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  // Use effects
+  useEffect(() => {
+    localStorage.setItem("cart", JSON.stringify(cart));
+  }, [cart]);
+
+  useEffect(() => {
+    updateCart();
+  }, [cart]);
 
   useEffect(() => {
     fetchProducts();
   }, []);
 
+  // Render
   return (
     <div className="centered-div">
       <button id="view-cart-button" onClick={viewCart}>

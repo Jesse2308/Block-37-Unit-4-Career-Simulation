@@ -35,15 +35,6 @@ const orderRoutes = require("./orders");
 const cartRoutes = require("./Cart");
 const adminRoutes = require("./admin");
 
-// Define utility functions
-async function deleteProduct(product_id, sellerId) {
-  const SQL = `
-    DELETE FROM products
-    WHERE id = $1 AND seller_id = $2;
-  `;
-  await client.query(SQL, [product_id, sellerId]);
-}
-
 // Create Express app
 const app = express();
 module.exports = app;
@@ -60,12 +51,12 @@ app.use(
 app.use(express.json());
 
 // Use route files as middleware
-app.use(authRoutes);
-app.use(stripeRoutes);
-app.use(productRoutes);
-app.use(orderRoutes);
-app.use(cartRoutes);
-app.use(adminRoutes);
+app.use("/api", authRoutes);
+app.use("/api", stripeRoutes);
+app.use("/api", productRoutes);
+app.use("/api", orderRoutes);
+app.use("/api", cartRoutes);
+app.use("/api", adminRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

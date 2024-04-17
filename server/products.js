@@ -1,12 +1,11 @@
 const express = require("express");
 const jwt = require("jsonwebtoken");
-const client = require("./db");
-
+const { client } = require("./db");
 // Create Express router
 const productRoutes = express.Router();
 
 // Route to fetch all products
-productRoutes.get("/api/products", async (req, res, next) => {
+productRoutes.get("/products", async (req, res, next) => {
   try {
     // SQL query to fetch all products
     const SQL = `
@@ -22,7 +21,7 @@ productRoutes.get("/api/products", async (req, res, next) => {
 });
 
 // Route to add a new product
-productRoutes.post("/api/products", async (req, res, next) => {
+productRoutes.post("/products", async (req, res, next) => {
   try {
     // Extract product details from request body
     const { name, price } = req.body;
@@ -46,7 +45,7 @@ productRoutes.post("/api/products", async (req, res, next) => {
 });
 
 // Route to fetch a product by id
-productRoutes.get("/api/products/:item_id", async (req, res, next) => {
+productRoutes.get("/products/:item_id", async (req, res, next) => {
   try {
     // Extract the product id from request parameters
     const { item_id } = req.params;
@@ -66,20 +65,40 @@ productRoutes.get("/api/products/:item_id", async (req, res, next) => {
 });
 
 // Route to fetch all products of a user
-productRoutes.get("/api/products/user/:userId", async (req, res, next) => {
+productRoutes.get("/products/user/:user_id", async (req, res, next) => {
   try {
     // Extract the user id from request parameters
-    const { userId } = req.params;
+    const { user_id } = req.params;
 
     // SQL query to fetch all products of a user
     const SQL = `
     SELECT * FROM products
     WHERE seller_id = $1;
     `;
-    const response = await client.query(SQL, [userId]);
+    const response = await client.query(SQL, [user_id]);
 
     // Send the products
     res.send(response.rows);
+  } catch (error) {
+    next(error);
+  }
+});
+// Route to fetch the user's orders
+productRoutes.get("/orders/:user_id", async (req, res, next) => {
+  try {
+    const { user_id } = req.params;
+    const SQL = `
+      SELECT * FROM orders
+      WHERE user_id = $1;
+    `;
+    const response = await client.query(SQL, [user_id]);
+
+    // If no orders are found, return an empty array
+    if (response.rows.length === 0) {
+      res.json([]);
+    } else {
+      res.json(response.rows);
+    }
   } catch (error) {
     next(error);
   }
