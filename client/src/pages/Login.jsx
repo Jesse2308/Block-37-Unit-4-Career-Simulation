@@ -80,9 +80,13 @@ const Login = () => {
 
   useEffect(() => {
     const token = localStorage.getItem("token");
+    // If the token is present, set it in the state
     if (token) {
-      // If the token is present, set it in the state
-      navigate("/account");
+      if (user.isAdmin) {
+        navigate("/AdminAccount");
+      } else {
+        navigate("/account");
+      }
     }
   }, []);
 

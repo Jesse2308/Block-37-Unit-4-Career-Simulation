@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+const BASE_URL = "http://localhost:3000";
 
 // This is the main Admin component
 const Admin = () => {
@@ -18,7 +19,7 @@ const Admin = () => {
 
   // Fetch products from the server
   const fetchProducts = () => {
-    fetch("/api/admin/products")
+    fetch(`${BASE_URL}/api/admin/products`)
       .then((response) => {
         if (!response.ok) {
           throw new Error("Network response was not ok");
@@ -34,7 +35,7 @@ const Admin = () => {
 
   // Fetch users from the server
   const fetchUsers = () => {
-    fetch("/api/admin/users")
+    fetch(`${BASE_URL}/api/admin/users`)
       .then((response) => {
         if (!response.ok) {
           throw new Error("Network response was not ok");
@@ -74,7 +75,7 @@ const Admin = () => {
   const editProduct = (product) => {
     console.log("Editing product:", product);
     // Edit product on the server
-    fetch(`/api/admin/products/${product.id}`, {
+    fetch(`${BASE_URL}/api/admin/products/${product.id}`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -101,7 +102,7 @@ const Admin = () => {
   const deleteProduct = (productId) => {
     console.log("Deleting product:", productId);
     // Delete product from the server
-    fetch(`/api/admin/products/${productId}`, {
+    fetch(`${BASE_URL}/api/admin/products/${productId}`, {
       method: "DELETE",
     })
       .then((response) => {

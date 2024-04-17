@@ -1,5 +1,6 @@
 const express = require("express");
 const adminRoutes = express.Router();
+
 // Middleware to check if user is admin
 async function isAdmin(req, res, next) {
   try {

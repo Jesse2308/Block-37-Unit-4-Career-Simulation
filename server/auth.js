@@ -110,8 +110,9 @@ async function getCurrentUser(req, res) {
 
 async function updateUserDetails(req, res, next) {
   const token = req.headers.authorization.split(" ")[1];
-  const { email, password } = req.body;
-  if (!email || !password) {
+  const { username } = req.body; // Extract only username from request body
+  if (!username) {
+    // Check if username is provided
     res
       .status(400)
       .send({ success: false, message: "Missing required fields" });
@@ -119,16 +120,14 @@ async function updateUserDetails(req, res, next) {
   }
   try {
     const payload = jwt.verify(token, process.env.JWT_SECRET);
-    const hashedPassword = await bcrypt.hash(password, 10);
     const SQL = `
-              UPDATE users 
-              SET email = $1, password = $2
-              WHERE id = $3
-              RETURNING *;
-              `;
+  UPDATE users 
+  SET username = $1 /* Update only username in database */
+  WHERE id = $2
+  RETURNING *;
+`;
     const response = await client.query(SQL, [
-      email,
-      hashedPassword,
+      username, // Pass username to SQL query
       payload.userId,
     ]);
     const user = response.rows[0];

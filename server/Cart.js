@@ -23,20 +23,21 @@ const DELETE_ITEM_FROM_CART = `
   WHERE user_id = $1 AND product_id = $2;
 `;
 
-// Route to add an item to the cart
+/// Route to add an item to the cart
 cartRoutes.post("/cart/:user_id", async (req, res, next) => {
   try {
-    const { user_id, product_id } = req.body;
+    const { user_id, product_id, quantity = 1 } = req.body; // Default quantity to 1 if not provided
     if (!user_id || !product_id) {
       res
         .status(400)
         .send({ success: false, message: "Missing user_id or product_id" });
       return;
     }
-    const newCartItem = await client.query(
-      INSERT_INTO_CART,
-      [user_id, product_id, 1] // Assuming quantity is 1
-    );
+    const newCartItem = await client.query(INSERT_INTO_CART, [
+      user_id,
+      product_id,
+      quantity,
+    ]);
     res.status(201).json(newCartItem.rows[0]);
   } catch (err) {
     next(err);
@@ -68,6 +69,7 @@ cartRoutes.get("/cart/:user_id", async (req, res, next) => {
     next(err);
   }
 });
+
 // Route to update a user's cart
 cartRoutes.put("/cart/:user_id", async (req, res, next) => {
   try {
@@ -79,19 +81,19 @@ cartRoutes.put("/cart/:user_id", async (req, res, next) => {
       return;
     }
     // Assuming cart is an array of { product_id, quantity }
-    for (let item of cart) {
-      await client.query(
+    const updatePromises = cart.map((item) =>
+      client.query(
         "UPDATE cart SET quantity = $1 WHERE user_id = $2 AND product_id = $3",
         [item.quantity, user_id, item.product_id]
-      );
-    }
+      )
+    );
+    await Promise.all(updatePromises);
     const updatedCart = await client.query(SELECT_FROM_CART, [user_id]);
     res.status(200).json(updatedCart.rows);
   } catch (err) {
     next(err);
   }
 });
-
 // Route to remove an item from the cart
 cartRoutes.delete("/cart/:user_id/:product_id", async (req, res, next) => {
   try {

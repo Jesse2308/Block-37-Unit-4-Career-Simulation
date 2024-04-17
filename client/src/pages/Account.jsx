@@ -111,8 +111,8 @@ const Account = () => {
     console.log("Handling account update");
     event.preventDefault();
 
-    if (!username || !email) {
-      alert("All fields are required");
+    if (!username) {
+      alert("Username is required");
       return;
     }
 
@@ -128,10 +128,10 @@ const Account = () => {
       "Content-Type": "application/json",
     };
 
-    fetch(`${BASE_URL}/api/me`, {
+    fetch(`${BASE_URL}/api/user`, {
       method: "PUT",
       headers,
-      body: JSON.stringify({ username, email }),
+      body: JSON.stringify({ username }), // Send only username in request body
     })
       .then((response) => {
         if (!response.ok) {
@@ -141,9 +141,12 @@ const Account = () => {
       })
       .then((data) => {
         setCurrentUser(data.user);
-        setUsername(""); // Clear the username input field
       })
-      .catch((error) => setError(error.message));
+      .catch((error) => {
+        console.error("Error:", error);
+        // You can set the error message to your state to display it in your UI
+        setError(error.message);
+      });
   };
 
   const handleAddProduct = async (event) => {
