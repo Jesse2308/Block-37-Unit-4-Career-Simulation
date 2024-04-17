@@ -1,5 +1,14 @@
 const express = require("express");
+const jwt = require("jsonwebtoken");
 const adminRoutes = express.Router();
+const {
+  client,
+  fetchAdminUsers,
+  fetchProducts,
+  one,
+  none,
+  getUserById,
+} = require("./db");
 
 // Middleware to check if user is admin
 async function isAdmin(req, res, next) {
@@ -29,9 +38,20 @@ async function isAdmin(req, res, next) {
 
 // Define your admin routes
 
+// Fetch all users from the database as an admin
+adminRoutes.get("/users", isAdmin, async (req, res) => {
+  try {
+    const users = await fetchAdminUsers();
+    // Send the users as a response
+    res.json(users);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 // Fetch all products from the database as an admin
 adminRoutes.get("/products", isAdmin, async (req, res) => {
-  const products = await db.fetchProducts();
+  const products = await fetchProducts();
   // Send the products as a response
   res.json(products);
 });
@@ -48,7 +68,7 @@ adminRoutes.post("/products", isAdmin, async (req, res) => {
     }
 
     // SQL query to insert the new product into the database
-    const newProduct = await db.one(
+    const newProduct = await one(
       "INSERT INTO products(name, price) VALUES($1, $2) RETURNING *",
       [name, price]
     );
@@ -74,9 +94,63 @@ adminRoutes.put("/products/:id", isAdmin, async (req, res) => {
     }
 
     // SQL query to update the product in the database
-    const updatedProduct = await db.one(
+    const updatedProduct = await one(
       "UPDATE products SET name = $1, price = $2 WHERE id = $3 RETURNING *",
       [name, price, id]
+    );
+
+    // Send the updated product
+    res.json(updatedProduct);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+// Update a product's name in the database as an admin
+adminRoutes.put("/products/:id/name", isAdmin, async (req, res) => {
+  try {
+    // Extract product name from request body
+    const { name } = req.body;
+
+    // Extract product id from request parameters
+    const { id } = req.params;
+
+    // If name is not provided, send an error message
+    if (!name) {
+      throw new Error("Invalid name");
+    }
+
+    // SQL query to update the product's name in the database
+    const updatedProduct = await one(
+      "UPDATE products SET name = $1 WHERE id = $2 RETURNING *",
+      [name, id]
+    );
+
+    // Send the updated product
+    res.json(updatedProduct);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+// Update a product's price in the database as an admin
+adminRoutes.put("/products/:id/price", isAdmin, async (req, res) => {
+  try {
+    // Extract product price from request body
+    const { price } = req.body;
+
+    // Extract product id from request parameters
+    const { id } = req.params;
+
+    // If price is not provided, send an error message
+    if (!price) {
+      throw new Error("Invalid price");
+    }
+
+    // SQL query to update the product's price in the database
+    const updatedProduct = await one(
+      "UPDATE products SET price = $1 WHERE id = $2 RETURNING *",
+      [price, id]
     );
 
     // Send the updated product
@@ -97,7 +171,7 @@ adminRoutes.delete("/products/:id", isAdmin, async (req, res) => {
     }
 
     // SQL query to delete the product from the database
-    await db.none("DELETE FROM products WHERE id = $1", [id]);
+    await none("DELETE FROM products WHERE id = $1", [id]);
 
     // Send a success message
     res.json({ message: "Product deleted" });

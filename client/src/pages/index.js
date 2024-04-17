@@ -8,6 +8,7 @@ import Checkout from "./Checkout";
 import ProductDetail from "./ProductDetail";
 import Admin from "./Admin";
 import UserProvider from "./UserProvider";
+import AdminAccount from "./AdminAccount";
 export {
   Account,
   Login,
@@ -19,4 +20,5 @@ export {
   ProductDetail,
   Admin,
   UserProvider,
+  AdminAccount,
 };

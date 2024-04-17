@@ -76,7 +76,13 @@ async function loginUser(req, res, next) {
       const user = await authenticateUser(email, password);
       if (user) {
         const token = generateToken(user);
-        res.json({ success: true, userId: user.id, token, email: user.email });
+        res.json({
+          success: true,
+          userId: user.id,
+          token,
+          email: user.email,
+          isadmin: user.isadmin, // Include isadmin in the response
+        });
       } else {
         res
           .status(401)

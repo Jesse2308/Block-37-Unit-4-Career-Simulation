@@ -30,7 +30,7 @@ if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
 }
 
 // Define createUser function
-async function createUser({ email, password, isAdmin, accountType }) {
+async function createUser({ email, password, isadmin, accountType }) {
   // Hash the password before storing it
   const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -40,7 +40,7 @@ async function createUser({ email, password, isAdmin, accountType }) {
     VALUES ($1, $2, $3, $4)
     RETURNING *;
   `;
-  const values = [email, hashedPassword, isAdmin, accountType];
+  const values = [email, hashedPassword, isadmin, accountType];
   const result = await client.query(SQL, values);
 
   // Throw an error if the user couldn't be created
@@ -57,7 +57,7 @@ async function createAdminAccount() {
     const admin = await createUser({
       email: process.env.EMAIL_USER,
       password: process.env.EMAIL_PASS,
-      isAdmin: true,
+      isadmin: true,
       accountType: "admin",
     });
 
@@ -74,7 +74,7 @@ createAdminAccount().catch((error) => {
 });
 
 // Register a new user
-const register = async ({ email, password, isAdmin = false }) => {
+const register = async ({ email, password, isadmin = false }) => {
   // Check if a user with the given email already exists
   const checkSQL = `
     SELECT * FROM users WHERE email = $1;
@@ -85,7 +85,7 @@ const register = async ({ email, password, isAdmin = false }) => {
   }
 
   // If not, insert the new user
-  const user = await createUser({ email, password, isAdmin });
+  const user = await createUser({ email, password, isadmin });
 
   // Send a verification email
   const transporter = nodemailer.createTransport({
@@ -111,10 +111,10 @@ const register = async ({ email, password, isAdmin = false }) => {
 // Check if a user is an admin
 const isAdmin = async (userId) => {
   const SQL = `
-    SELECT isAdmin FROM users WHERE id=$1;
+    SELECT isadmin FROM users WHERE id=$1;
   `;
   const response = await client.query(SQL, [userId]);
-  if (!response.rows.length || !response.rows[0].isAdmin) {
+  if (!response.rows.length || !response.rows[0].isadmin) {
     const error = Error("not authorized");
     error.status = 401;
     throw error;
@@ -149,8 +149,8 @@ async function createAdminAccount() {
       // User with this email doesn't exist, create a new user
       await createUser({
         email: "tinkersecom@gmail.com",
-        password: "admin123",
-        isAdmin: true,
+        password: "Ilovecode29",
+        isadmin: true,
         accountType: "admin",
       });
     }
@@ -171,7 +171,7 @@ function setupRoutes(app) {
 const adminOnly = async (req, res, next) => {
   const token = req.headers.authorization.split(" ")[1];
   const user = await findUserWithToken(token);
-  if (!user.isAdmin) {
+  if (!user.isadmin) {
     const error = Error("not authorized");
     error.status = 401;
     throw error;
@@ -259,10 +259,10 @@ const findUserWithToken = async (token) => {
   return response.rows[0];
 };
 
-// Fetch all admin users
-const fetchuserAdmin = async () => {
+// Fetch all users with username and email for admin
+const fetchAdminUsers = async () => {
   const SQL = `
-  SELECT id, email FROM users;
+  SELECT username, email FROM users;
   `;
   const response = await client.query(SQL);
   return response.rows;
@@ -577,7 +577,7 @@ module.exports = {
   isAdmin,
   fetchProducts,
   editProduct,
-  fetchuserAdmin,
+  fetchAdminUsers,
   setupRoutes,
   createGuestCartTable,
   getUserById,

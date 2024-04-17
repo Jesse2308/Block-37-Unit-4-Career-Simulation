@@ -45,7 +45,25 @@ const Login = () => {
       const data = await response.json();
       console.log("Login data:", data);
       if (data.userId) {
-        setCurrentUser({ id: data.userId, email: data.email });
+        setCurrentUser((prevUser) => {
+          const newUser = {
+            id: data.userId,
+            email: data.email,
+            isadmin: data.isadmin,
+          };
+          console.log("newUser:", newUser);
+
+          if (newUser.isadmin) {
+            console.log("Admin is being sent to AdminAccount");
+            navigate("/AdminAccount");
+            console.log("Should have navigated to /AdminAccount");
+          } else {
+            console.log("Navigating to /account");
+            navigate("/account");
+            console.log("Should have navigated to /account");
+          }
+          return newUser;
+        });
         setToken(data.token);
         // Save the token in local storage
         localStorage.setItem("token", data.token);
@@ -66,7 +84,6 @@ const Login = () => {
         throw new Error("User data is not available");
       }
       setIsLoading(false);
-      navigate("/account");
     } catch (error) {
       setError(error.message);
       setIsLoading(false);
@@ -82,13 +99,23 @@ const Login = () => {
     const token = localStorage.getItem("token");
     // If the token is present, set it in the state
     if (token) {
-      if (user.isAdmin) {
+      if (user && user.isadmin) {
         navigate("/AdminAccount");
       } else {
         navigate("/account");
       }
     }
-  }, []);
+  }, [user]);
+
+  useEffect(() => {
+    if (user) {
+      if (user.isadmin) {
+        navigate("/AdminAccount");
+      } else {
+        navigate("/account");
+      }
+    }
+  }, [user]);
 
   return (
     <div className="login">
@@ -123,6 +150,10 @@ const Login = () => {
           {isLoading ? "Loading..." : "Login"}
         </button>
       </form>
+      {/* Temporary button to test navigate
+      <button onClick={() => navigate("/AdminAccount")}>
+        Test navigate to AdminAccount
+      </button> */}
     </div>
   );
 };

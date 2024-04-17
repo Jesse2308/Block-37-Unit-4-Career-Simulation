@@ -1,5 +1,5 @@
 import { Routes, Route } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   NavBar,
   Store,
@@ -11,6 +11,7 @@ import {
   ProductDetail,
   Admin,
   UserProvider,
+  AdminAccount,
 } from "./pages";
 
 function App() {
@@ -34,6 +35,7 @@ function App() {
         <Route path="/products/:id" element={<ProductDetail />} />
         <Route path="/checkout" element={<Checkout />} />
         <Route path="/admin" element={<Admin />} />
+        <Route path="/AdminAccount" element={<AdminAccount />} />
       </Routes>
     </UserProvider>
   );
