@@ -26,7 +26,8 @@ const DELETE_ITEM_FROM_CART = `
 /// Route to add an item to the cart
 cartRoutes.post("/cart/:user_id", async (req, res, next) => {
   try {
-    const { user_id, product_id, quantity = 1 } = req.body; // Default quantity to 1 if not provided
+    const user_id = req.params.user_id;
+    const { product_id, quantity = 1 } = req.body; // Default quantity to 1 if not provided
     if (!user_id || !product_id) {
       res
         .status(400)
@@ -73,7 +74,8 @@ cartRoutes.get("/cart/:user_id", async (req, res, next) => {
 // Route to update a user's cart
 cartRoutes.put("/cart/:user_id", async (req, res, next) => {
   try {
-    const { user_id, cart } = req.body;
+    const user_id = req.params.user_id;
+    const { cart } = req.body;
     if (!user_id || !cart) {
       res
         .status(400)

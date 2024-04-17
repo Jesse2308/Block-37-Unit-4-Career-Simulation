@@ -9,6 +9,7 @@ import ProductDetail from "./ProductDetail";
 import Admin from "./Admin";
 import UserProvider from "./UserProvider";
 import AdminAccount from "./AdminAccount";
+import UserContext from "./UserProvider";
 export {
   Account,
   Login,
@@ -21,4 +22,5 @@ export {
   Admin,
   UserProvider,
   AdminAccount,
+  UserContext,
 };

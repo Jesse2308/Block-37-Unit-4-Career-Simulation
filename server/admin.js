@@ -1,14 +1,7 @@
 const express = require("express");
 const jwt = require("jsonwebtoken");
 const adminRoutes = express.Router();
-const {
-  client,
-  fetchAdminUsers,
-  fetchProducts,
-  one,
-  none,
-  getUserById,
-} = require("./db");
+const { client, fetchProducts, one, none, getUserById } = require("./db");
 
 // Middleware to check if user is admin
 async function isAdmin(req, res, next) {
@@ -26,7 +19,7 @@ async function isAdmin(req, res, next) {
     const user = await getUserById(userId);
 
     // If user is an admin, proceed to the next middleware, else send an error message
-    if (user && user.isAdmin) {
+    if (user && user.isadmin) {
       next();
     } else {
       res.status(403).json({ message: "Forbidden" });
@@ -41,8 +34,7 @@ async function isAdmin(req, res, next) {
 // Fetch all users from the database as an admin
 adminRoutes.get("/users", isAdmin, async (req, res) => {
   try {
-    const users = await fetchAdminUsers();
-    // Send the users as a response
+    const users = await db.getUsers(); // Fetch users directly from the database
     res.json(users);
   } catch (err) {
     res.status(500).json({ message: err.message });

@@ -22,18 +22,18 @@ const Store = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
-
   const addToCart = async (productDetails, quantity = 1) => {
     const item = { ...productDetails, quantity };
 
     if (user && user.id) {
       const user_id = user.id;
       try {
-        const response = await fetch(`/api/cart/${user_id}`, {
+        const response = await fetch(`${BASE_URL}/api/cart/${user_id}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            item: { product_id: item.id, quantity: item.quantity },
+            product_id: item.id,
+            quantity: item.quantity,
           }),
         });
 
@@ -68,7 +68,7 @@ const Store = () => {
     }));
 
     try {
-      const response = await fetch(`/api/cart/${user_id}`, {
+      const response = await fetch(`${BASE_URL}/api/cart/${user_id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ cart: formattedCart }),

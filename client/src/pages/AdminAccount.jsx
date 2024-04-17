@@ -30,10 +30,18 @@ const AdminAccount = () => {
   const fetchAdminUsers = async () => {
     // Fetch users from your API and update the users state
     try {
-      const response = await fetch(`${BASE_URL}/api/users`);
+      const token = localStorage.getItem("token"); // Get the token from local storage
+
+      const response = await fetch(`${BASE_URL}/api/users`, {
+        headers: {
+          Authorization: `Bearer ${token}`, // Include the token in the Authorization header
+        },
+      });
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
+
       const data = await response.json();
       setUsers(data);
     } catch (error) {

@@ -35,7 +35,11 @@ const NavBar = () => {
         {user && (
           <>
             <li>
-              <Link to="/account">Account</Link>
+              {user.isadmin ? (
+                <Link to="/AdminAccount">Admin Account</Link>
+              ) : (
+                <Link to="/account">Account</Link>
+              )}
             </li>
 
             <button id="logout-button" onClick={handleLogout}>

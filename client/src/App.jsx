@@ -1,5 +1,5 @@
-import { Routes, Route } from "react-router-dom";
-import { useState } from "react";
+import { useContext, useState, useEffect } from "react";
+import { Routes, Route, useNavigate } from "react-router-dom";
 import {
   NavBar,
   Store,
@@ -13,6 +13,7 @@ import {
   UserProvider,
   AdminAccount,
 } from "./pages";
+import { UserContext } from "./pages/UserProvider";
 
 function App() {
   const [cart, setCart] = useState([]);
@@ -30,7 +31,7 @@ function App() {
         />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
-        <Route path="/account" element={<Account />} />
+        <Route path="/account" element={<AccountPage />} />
         <Route path="/cart" element={<Cart setCart={setCart} />} />
         <Route path="/products/:id" element={<ProductDetail />} />
         <Route path="/checkout" element={<Checkout />} />
@@ -39,6 +40,19 @@ function App() {
       </Routes>
     </UserProvider>
   );
+}
+
+function AccountPage() {
+  const { user } = useContext(UserContext);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (user && user.role === "admin") {
+      navigate("/AdminAccount");
+    }
+  }, [user, navigate]);
+
+  return user && user.role === "admin" ? <AdminAccount /> : <Account />;
 }
 
 export default App;
