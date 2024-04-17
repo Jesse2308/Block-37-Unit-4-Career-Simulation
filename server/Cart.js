@@ -34,12 +34,23 @@ cartRoutes.post("/cart/:user_id", async (req, res, next) => {
         .send({ success: false, message: "Missing user_id or product_id" });
       return;
     }
-    const newCartItem = await client.query(INSERT_INTO_CART, [
-      user_id,
-      product_id,
-      quantity,
-    ]);
-    res.status(201).json(newCartItem.rows[0]);
+
+    // If the user_id is "guest", handle the request differently
+    if (user_id === "guest") {
+      // Here, you can handle the request differently for guest users
+      // For example, you can store the cart items in memory or in a file
+      // For now, let's just return a success message
+      res
+        .status(201)
+        .json({ success: true, message: "Item added to guest cart" });
+    } else {
+      const newCartItem = await client.query(INSERT_INTO_CART, [
+        user_id,
+        product_id,
+        quantity,
+      ]);
+      res.status(201).json(newCartItem.rows[0]);
+    }
   } catch (err) {
     next(err);
   }

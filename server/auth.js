@@ -6,6 +6,21 @@ const nodemailer = require("nodemailer");
 const crypto = require("crypto");
 const { client, getUserById } = require("./db");
 
+// SQL queries
+const DELETE_FROM_CART = `
+  DELETE FROM cart
+  WHERE user_id = $1;
+`;
+
+const INSERT_INTO_CART = `
+  INSERT INTO cart (user_id, product_id, quantity)
+  VALUES ($1, $2, $3)
+  RETURNING *;
+`;
+const SELECT_FROM_CART = `
+  SELECT * FROM cart WHERE user_id = $1;
+`;
+
 // Create Express router
 const authRoutes = express.Router();
 
@@ -76,12 +91,36 @@ async function loginUser(req, res, next) {
       const user = await authenticateUser(email, password);
       if (user) {
         const token = generateToken(user);
+
+        // Fetch the guest cart
+        const guestCart = await client.query(SELECT_FROM_CART, [0]); // use 0 for guest user_id
+
+        // Fetch the user's cart
+        const userCart = await client.query(SELECT_FROM_CART, [user.id]);
+
+        // Merge the two carts
+        const mergedCart = mergeCarts(guestCart.rows, userCart.rows);
+
+        // Update the user's cart with the merged cart
+        await client.query(DELETE_FROM_CART, [user.id]);
+        for (const item of mergedCart) {
+          await client.query(INSERT_INTO_CART, [
+            user.id,
+            item.product_id,
+            item.quantity,
+          ]);
+        }
+
+        // Clear the guest cart
+        await client.query(DELETE_FROM_CART, [0]); // use 0 for guest user_id
+
         res.json({
           success: true,
           userId: user.id,
           token,
           email: user.email,
           isadmin: user.isadmin, // Include isadmin in the response
+          message: "User logged in and carts merged",
         });
       } else {
         res
@@ -92,6 +131,30 @@ async function loginUser(req, res, next) {
       next(error);
     }
   }
+}
+
+// Function to merge two carts
+function mergeCarts(guestCart, userCart) {
+  // Create a new array to hold the merged cart
+  const mergedCart = [...userCart];
+
+  // For each item in the guest cart
+  for (const guestItem of guestCart) {
+    // Check if the item is already in the user's cart
+    const userItem = userCart.find(
+      (item) => item.product_id === guestItem.product_id
+    );
+
+    if (userItem) {
+      // If the item is already in the user's cart, increase the quantity
+      userItem.quantity += guestItem.quantity;
+    } else {
+      // If the item is not in the user's cart, add it
+      mergedCart.push(guestItem);
+    }
+  }
+
+  return mergedCart;
 }
 
 async function getCurrentUser(req, res) {

@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import { useEffect } from "react";
 import { loadStripe } from "@stripe/stripe-js";
 import axios from "axios";
 import "./Checkout.css";
@@ -21,7 +21,7 @@ const Checkout = () => {
             color: "#32325d",
             fontFamily: '"Helvetica Neue", Helvetica, sans-serif',
             fontSmoothing: "antialiased",
-            fontSize: "18px", // Increase the font size
+            fontSize: "18px",
             "::placeholder": {
               color: "#aab7c4",
             },

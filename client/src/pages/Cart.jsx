@@ -114,7 +114,8 @@ const Cart = () => {
 
   // Remove product from cart
   const removeFromCart = async (product_id) => {
-    if (!Number.isInteger(Number(product_id)) || product_id <= 0) {
+    const productIdNumber = Number(product_id);
+    if (!Number.isInteger(productIdNumber) || productIdNumber <= 0) {
       console.error("Invalid product_id");
       return;
     }
@@ -125,7 +126,9 @@ const Cart = () => {
         // Get the guest's cart from local storage
         let guestCart = JSON.parse(localStorage.getItem("guestCart")) || [];
         // Remove the item from the guest's cart
-        guestCart = guestCart.filter((item) => item.id !== product_id);
+        guestCart = guestCart.filter(
+          (item) => Number(item.id) !== productIdNumber
+        );
         // Save the updated cart in local storage
         localStorage.setItem("guestCart", JSON.stringify(guestCart));
         console.log("Item removed from guest cart:", product_id);
@@ -137,7 +140,7 @@ const Cart = () => {
           `Attempting to remove product with id ${product_id} from cart...`
         );
         const response = await fetch(
-          `${BASE_URL}/api/cart/${userId}/${Number(product_id)}`,
+          `${BASE_URL}/api/cart/${userId}/${productIdNumber.toString()}`,
           {
             method: "DELETE",
             headers,
@@ -147,7 +150,9 @@ const Cart = () => {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
       }
-      setCart((prevCart) => prevCart.filter((item) => item.id !== product_id));
+      setCart((prevCart) =>
+        prevCart.filter((item) => Number(item.id) !== productIdNumber)
+      );
       console.log("Item removed from cart:", product_id);
     } catch (error) {
       console.error(`Error removing item: ${error}`);

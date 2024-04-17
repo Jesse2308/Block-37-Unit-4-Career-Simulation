@@ -22,6 +22,8 @@ const Store = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
+
+  
   const addToCart = async (productDetails, quantity = 1) => {
     const item = { ...productDetails, quantity };
 
