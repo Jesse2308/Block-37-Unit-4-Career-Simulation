@@ -7,12 +7,6 @@ const AdminAccount = () => {
   const [newProductName, setNewProductName] = useState("");
   const [newProductPrice, setNewProductPrice] = useState("");
 
-  useEffect(() => {
-    // Fetch all products and users when the component mounts
-    fetchProducts();
-    fetchAdminUsers();
-  }, []);
-
   const fetchProducts = async () => {
     // Fetch products from your API and update the products state
     try {
@@ -27,16 +21,17 @@ const AdminAccount = () => {
     }
   };
 
-  const fetchAdminUsers = async () => {
-    // Fetch users from your API and update the users state
+  const fetchUsersFromServer = async () => {
     try {
-      const token = localStorage.getItem("token"); // Get the token from local storage
+      const token = localStorage.getItem("token");
 
-      const response = await fetch(`${BASE_URL}/api/users`, {
+      const response = await fetch(`${BASE_URL}/api/admin/users`, {
         headers: {
-          Authorization: `Bearer ${token}`, // Include the token in the Authorization header
+          Authorization: `Bearer ${token}`,
         },
       });
+
+      console.log(response); // Log the response
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -48,6 +43,11 @@ const AdminAccount = () => {
       console.error("Error:", error);
     }
   };
+
+  useEffect(() => {
+    fetchProducts();
+    fetchUsersFromServer();
+  }, []);
 
   const handleAddProduct = async (newProduct) => {
     try {

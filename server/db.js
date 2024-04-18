@@ -261,11 +261,16 @@ const findUserWithToken = async (token) => {
 
 // Fetch all users with username and email for admin
 const fetchAdminUsers = async () => {
-  const SQL = `
-  SELECT username, email FROM users;
-  `;
-  const response = await client.query(SQL);
-  return response.rows;
+  try {
+    const SQL = `
+    SELECT username, email FROM users;
+    `;
+    const response = await client.query(SQL);
+    return response.rows;
+  } catch (error) {
+    console.error("Error fetching admin users:", error);
+    throw error;
+  }
 };
 
 // Table creation functions

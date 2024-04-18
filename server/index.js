@@ -56,8 +56,7 @@ app.use("/api", stripeRoutes);
 app.use("/api", productRoutes);
 app.use("/api", orderRoutes);
 app.use("/api", cartRoutes);
-app.use("/api", adminRoutes);
-
+app.use("/api/admin", adminRoutes);
 // Error handling middleware
 app.use((err, req, res, next) => {
   // Log the error stack trace to the console

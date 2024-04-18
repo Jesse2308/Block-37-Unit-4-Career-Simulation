@@ -1,11 +1,26 @@
 const express = require("express");
 const jwt = require("jsonwebtoken");
 const adminRoutes = express.Router();
-const { client, fetchProducts, one, none, getUserById } = require("./db");
+const {
+  client,
+  fetchProducts,
+  one,
+  none,
+  getUserById,
+  fetchAdminUsers,
+} = require("./db");
 
 // Middleware to check if user is admin
 async function isAdmin(req, res, next) {
   try {
+    // Check if the Authorization header is present and contains a token
+    if (
+      !req.headers.authorization ||
+      !req.headers.authorization.split(" ")[1]
+    ) {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+
     // Extract the token from the Authorization header
     const token = req.headers.authorization.split(" ")[1];
 
@@ -29,23 +44,29 @@ async function isAdmin(req, res, next) {
   }
 }
 
-// Define your admin routes
-
 // Fetch all users from the database as an admin
 adminRoutes.get("/users", isAdmin, async (req, res) => {
   try {
-    const users = await db.getUsers(); // Fetch users directly from the database
+    console.log("Fetching users from the database...");
+    const users = await fetchAdminUsers();
+    console.log(`Fetched ${users.length} users from the database.`);
     res.json(users);
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error("Error fetching users from the database:", err);
+    res.status(500).json({ message: "Internal Server Error" });
   }
 });
 
 // Fetch all products from the database as an admin
 adminRoutes.get("/products", isAdmin, async (req, res) => {
-  const products = await fetchProducts();
-  // Send the products as a response
-  res.json(products);
+  try {
+    const products = await fetchProducts();
+    // Send the products as a response
+    res.json(products);
+  } catch (err) {
+    console.error("Error fetching products from the database:", err);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
 });
 
 // Add a new product to the database as an admin
