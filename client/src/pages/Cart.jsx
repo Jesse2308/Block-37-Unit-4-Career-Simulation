@@ -126,14 +126,20 @@ const Cart = () => {
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
-      }
-      // Remove item from local state
-      setCart(cart.filter((item) => item.id !== productId));
-      // Remove item from local storage
-      const savedCart = JSON.parse(localStorage.getItem("guestCart"));
-      if (savedCart) {
-        const updatedCart = savedCart.filter((item) => item.id !== productId);
-        localStorage.setItem("guestCart", JSON.stringify(updatedCart));
+        // Remove item from local state
+        setCart(
+          cart.filter((item) =>
+            user.id ? item.product_id !== productId : item.id !== productId
+          )
+        );
+      } else {
+        // Remove item from local storage
+        const savedCart = JSON.parse(localStorage.getItem("guestCart"));
+        if (savedCart) {
+          const updatedCart = savedCart.filter((item) => item.id !== productId);
+          localStorage.setItem("guestCart", JSON.stringify(updatedCart));
+          setCart(updatedCart);
+        }
       }
       console.log(`Item with id ${productId} removed from cart`);
     } catch (error) {
@@ -160,14 +166,17 @@ const Cart = () => {
         <p className="cart-empty">Your cart is empty</p>
       ) : (
         cart &&
-        cart.map((item) => {
-          const productId = user && user.id ? item.product_id : item.id; // Use product_id for logged-in users and id for guest users
+        cart.map((item, index) => {
+          const productId = user && user.id ? item.product_id : item.id;
           const product = products.find((p) => p.id === productId);
           if (!product) {
             return <p>Loading product details...</p>;
           }
           return (
-            <div key={item.cart_id || item.id} className="cart-item">
+            <div
+              key={`${item.cart_id || item.id}-${index}`}
+              className="cart-item"
+            >
               {" "}
               <img
                 src={product.image || "default-image.jpg"}
