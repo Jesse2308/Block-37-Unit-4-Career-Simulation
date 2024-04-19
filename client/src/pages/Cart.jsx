@@ -86,9 +86,19 @@ const Cart = () => {
     setTotalPrice(total.toFixed(2));
   }, [cart]);
 
-  // Change quantity of a product in cart
+  // After defining the changeQuantity function
+  useEffect(() => {
+    if (!user || !user.id) {
+      const guestCart = localStorage.getItem("guestCart");
+      if (guestCart) {
+        setCart(JSON.parse(guestCart));
+      }
+    }
+  }, [user]);
+
   const changeQuantity = (id, quantity) => {
-    const updatedQuantity = Math.max(0, parseInt(quantity)); // Ensure quantity can't go negative
+    console.log(`Changing quantity for id ${id} to ${quantity}`);
+    const updatedQuantity = Math.max(0, parseInt(quantity));
     if (isNaN(updatedQuantity)) {
       console.error("Invalid quantity:", quantity);
       return;
@@ -98,24 +108,58 @@ const Cart = () => {
       return;
     }
     setCart((prevCart) => {
-      const updatedCart = prevCart.map((p) =>
-        p.id === id ? { ...p, quantity: updatedQuantity } : p
-      );
-      if (user && user.id) {
-        updateUserCart(
-          user.id,
-          updatedCart.find((p) => p.id === id)
+      let updatedCart = prevCart;
+      const existingItem = updatedCart.find((p) => p.product_id === id);
+      if (existingItem) {
+        // Update the quantity of the existing item
+        updatedCart = updatedCart.map((p) =>
+          p.product_id === id ? { ...p, quantity: updatedQuantity } : p
         );
       } else {
+        // Add the new item to the cart
+        updatedCart = [
+          ...updatedCart,
+          { product_id: id, quantity: updatedQuantity },
+        ];
+      }
+      if (user && user.id) {
+        // Call updateUserCart with the entire cart and handle the response
+        console.log(`Updating cart in DB for user with id ${user.id}`);
+        updateUserCart(user.id, updatedCart)
+          .then((response) => {
+            console.log("Cart updated in DB:", response);
+          })
+          .catch((error) => {
+            console.error("Error updating cart in DB:", error);
+          });
+      } else {
         localStorage.setItem("guestCart", JSON.stringify(updatedCart));
+        console.log("Guest cart updated:", updatedCart);
       }
       return updatedCart;
     });
   };
-
-  // Remove product from cart
   const removeFromCart = async (productId) => {
     try {
+      console.log(`Trying to remove product with id ${productId} from cart`);
+
+      // Log the cart before removing the item
+      console.log("Cart before removing item:", cart);
+
+      // Remove item from local state
+      setCart((prevCart) => {
+        const updatedCart = prevCart.filter((item) => {
+          // Use item.product_id for logged in users and item.id for guest users
+          const itemId = user && user.id ? item.product_id : item.id;
+          return itemId !== productId;
+        });
+
+        // Log the updated cart
+        console.log("Updated cart:", updatedCart);
+
+        return updatedCart;
+      });
+
       if (user && user.id) {
         const response = await fetch(
           `${BASE_URL}/api/cart/${user.id}/${productId}`,
@@ -126,12 +170,7 @@ const Cart = () => {
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
-        // Remove item from local state
-        setCart(
-          cart.filter((item) =>
-            user.id ? item.product_id !== productId : item.id !== productId
-          )
-        );
+        console.log(`Item with id ${productId} removed from cart`);
       } else {
         // Remove item from local storage
         const savedCart = JSON.parse(localStorage.getItem("guestCart"));
@@ -141,7 +180,6 @@ const Cart = () => {
           setCart(updatedCart);
         }
       }
-      console.log(`Item with id ${productId} removed from cart`);
     } catch (error) {
       console.error(`Error removing item from cart: ${error}`);
     }

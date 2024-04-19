@@ -38,22 +38,23 @@ const ProductDetail = () => {
         const data = await response.json();
 
         setCart((prevCart) => {
-          let updatedCart = [...prevCart, data]; // Include all product details in the cart
+          let updatedCart = [...prevCart]; // Copy the current cart
 
           // Check if the item already exists in the cart
-          const existingItem = updatedCart.find((i) => i.id === item.id);
-          if (existingItem) {
-            // Update the quantity of the existing item
-            existingItem.quantity += item.quantity;
-            updatedCart = updatedCart.filter((i) => i.id !== item.id);
-            updatedCart.push(existingItem);
+          const existingItemIndex = updatedCart.findIndex(
+            (i) => i.id === item.id
+          );
+          if (existingItemIndex !== -1) {
+            // If the item already exists, update the quantity
+            updatedCart[existingItemIndex].quantity += item.quantity;
           } else {
-            // Add the new item to the cart
-            updatedCart.push(item);
+            // If the item doesn't exist, add it to the cart
+            updatedCart.push(data); // Add the data returned from the server to the cart
           }
 
+          console.log("Logged in user's cart after adding item:", updatedCart);
+
           updateUserCart(user_id, updatedCart);
-          console.log("Logged in user's cart updated with item:", item);
           // Save the logged-in user's cart under a different key in local storage
           localStorage.setItem(
             `userCart_${user_id}`,
@@ -66,6 +67,7 @@ const ProductDetail = () => {
         console.error(`Error adding item to cart: ${error}`);
       }
     } else {
+      // Add the new item to the state
       let guestCart = JSON.parse(localStorage.getItem("guestCart")) || [];
 
       // Check if the item already exists in the guest cart

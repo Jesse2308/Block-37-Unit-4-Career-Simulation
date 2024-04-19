@@ -27,51 +27,6 @@ const fetchUserCart = async (user_id) => {
   }
 };
 
-const updateUserCart = async (user_id, cart) => {
-  // Check if user_id is provided and cart is an array
-  if (!user_id || !Array.isArray(cart)) {
-    console.error("Missing or invalid user_id or cart");
-    return;
-  }
-
-  console.log(
-    "cart items:",
-    cart.map((item) => ({ id: item.id, quantity: item.quantity }))
-  );
-  console.log("cart:", cart);
-
-  const response = await fetch(`${BASE_URL}/api/cart/${user_id}`, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      user_id: user_id,
-      cart: cart.reduce((acc, item) => {
-        // Check if item.id and item.quantity are valid
-        if (!item.id || !Number.isInteger(item.quantity)) {
-          return acc;
-        }
-
-        acc.push({
-          product_id: String(item.id),
-          quantity: String(item.quantity),
-        });
-
-        return acc;
-      }, []),
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`HTTP error! status: ${response.status}`);
-  }
-
-  const data = await response.json();
-  console.log(`Updated user cart: ${JSON.stringify(data)}`);
-  return data;
-};
-
 // This component provides user data to its children
 export const UserProvider = ({ children }) => {
   // User state
@@ -88,11 +43,53 @@ export const UserProvider = ({ children }) => {
     // Try to load the cart from local storage
     let savedCart = localStorage.getItem("cart");
     if (savedCart && savedCart !== "undefined") {
+      console.log("Loaded cart from local storage:", savedCart);
       return JSON.parse(savedCart);
     } else {
+      console.log("No cart found in local storage. Initializing empty cart.");
       return [];
     }
   });
+
+  const updateUserCart = async (user_id, cart) => {
+    try {
+      const response = await fetch(`${BASE_URL}/api/cart/${user_id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(cart),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log(`Updated user cart: ${JSON.stringify(data)}`);
+      return data;
+    } catch (error) {
+      console.error("Error:", error);
+    }
+  };
+
+  useEffect(() => {
+    if (user && user.id && cart) {
+      updateUserCart(user.id, cart);
+    }
+  }, [cart, user]);
+
+  useEffect(() => {
+    if (user && user.id && cart) {
+      // Transform cart items to have the expected structure
+      const transformedCart = cart.map((item) => ({
+        product_id: String(item.id), // Convert product_id to a string
+        quantity: Number.isInteger(item.quantity) ? item.quantity : 1,
+      }));
+
+      updateUserCart(user.id, transformedCart)
+        .then(() => console.log("Cart updated on server"))
+        .catch((error) => console.error("Error updating cart:", error));
+    }
+  }, [cart, user]);
 
   // Function to fetch user data
   const fetchUserData = async () => {
@@ -129,20 +126,6 @@ export const UserProvider = ({ children }) => {
     }
   };
 
-  useEffect(() => {
-    if (user && user.id && cart) {
-      // Transform cart items to have the expected structure
-      const transformedCart = cart.map((item) => ({
-        product_id: String(item.id), // Convert product_id to a string
-        quantity: Number.isInteger(item.quantity) ? item.quantity : 1,
-      }));
-
-      updateUserCart(user.id, transformedCart)
-        .then(() => console.log("Cart updated on server"))
-        .catch((error) => console.error("Error updating cart:", error));
-    }
-  }, [cart, user]);
-
   // When the component mounts, fetch the user data
   useEffect(() => {
     console.log("currentUser state in UserProvider:", user);
@@ -166,6 +149,13 @@ export const UserProvider = ({ children }) => {
   useEffect(() => {
     console.log("Current user ID in UserProvider:", user ? user.id : "No user");
   }, []);
+
+  useEffect(() => {
+    // Update the cart on the server whenever the cart state changes
+    if (user && user.id && cart) {
+      updateUserCart(user.id, cart);
+    }
+  }, [cart, user]);
 
   // Provide the user data to children
   return (
