@@ -7,7 +7,7 @@ const BASE_URL = "http://localhost:3000";
 const ProductDetail = () => {
   const { id } = useParams();
   const [product, setProduct] = useState(null);
-  const { user, cart, setCart } = useContext(UserContext);
+  const { user, cart, setCart, updateUserCart } = useContext(UserContext);
 
   useEffect(() => {
     // Fetch the product data based on id
@@ -27,17 +27,24 @@ const ProductDetail = () => {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            product_id: item.id,
-            quantity: item.quantity,
+            product_id: String(item.id), // Convert product_id to a string
+            quantity: String(item.quantity), // Convert quantity to a string
           }),
         });
 
         if (!response.ok)
           throw new Error(`HTTP error! status: ${response.status}`);
 
-        await response.json();
-        setCart((prevCart) => [...prevCart, item]);
+        const data = await response.json();
+        const updatedCart = [...cart, item]; // Include all product details in the cart
+        setCart(updatedCart);
+        updateUserCart(user_id, updatedCart);
         console.log("Logged in user's cart updated with item:", item);
+        // Save the logged-in user's cart under a different key in local storage
+        localStorage.setItem(
+          `userCart_${user_id}`,
+          JSON.stringify(updatedCart)
+        );
       } catch (error) {
         console.error(`Error adding item to cart: ${error}`);
       }

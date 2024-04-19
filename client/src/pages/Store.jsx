@@ -17,13 +17,12 @@ const Product = ({ product, addToCart, buyNow }) => (
 );
 
 const Store = () => {
-  const { user, cart, setCart } = useContext(UserContext);
+  const { user, cart, setCart, updateUserCart } = useContext(UserContext);
   const [products, setProducts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
 
-  
   const addToCart = async (productDetails, quantity = 1) => {
     const item = { ...productDetails, quantity };
 
@@ -34,17 +33,24 @@ const Store = () => {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            product_id: item.id,
-            quantity: item.quantity,
+            product_id: String(item.id), // Convert product_id to a string
+            quantity: String(item.quantity), // Convert quantity to a string
           }),
         });
 
         if (!response.ok)
           throw new Error(`HTTP error! status: ${response.status}`);
 
-        await response.json();
-        setCart((prevCart) => [...prevCart, item]);
+        const data = await response.json();
+        const updatedCart = [...cart, item]; // Include all product details in the cart
+        setCart(updatedCart);
+        updateUserCart(user_id, updatedCart);
         console.log("Logged in user's cart updated with item:", item);
+        // Save the logged-in user's cart under a different key in local storage
+        localStorage.setItem(
+          `userCart_${user_id}`,
+          JSON.stringify(updatedCart)
+        );
       } catch (error) {
         console.error(`Error adding item to cart: ${error}`);
       }
@@ -54,35 +60,6 @@ const Store = () => {
       localStorage.setItem("guestCart", JSON.stringify(guestCart));
       setCart((prevCart) => [...prevCart, item]);
       console.log("Guest user's cart updated with item:", item);
-    }
-  };
-
-  const updateCart = async () => {
-    if (!user) return;
-
-    const user_id = user ? user.id : "guest";
-    if (user_id !== "guest" && !/^\d+$/.test(user_id)) return;
-    if (!Array.isArray(cart)) return;
-
-    const formattedCart = cart.map((item) => ({
-      product_id: item.id,
-      quantity: item.quantity,
-    }));
-
-    try {
-      const response = await fetch(`${BASE_URL}/api/cart/${user_id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cart: formattedCart }),
-      });
-
-      if (!response.ok)
-        throw new Error(`HTTP error! status: ${response.status}`);
-
-      await response.json();
-      console.log("Cart updated in the database for user:", user_id);
-    } catch (error) {
-      console.error(`Error updating cart: ${error}`);
     }
   };
 
@@ -124,10 +101,6 @@ const Store = () => {
 
   useEffect(() => {
     localStorage.setItem("cart", JSON.stringify(cart));
-  }, [cart]);
-
-  useEffect(() => {
-    updateCart();
   }, [cart]);
 
   useEffect(() => {

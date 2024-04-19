@@ -8,7 +8,8 @@ const BASE_URL = "http://localhost:3000";
 
 const Cart = () => {
   // Context and state variables
-  const { user, cart, setCart, fetchUserCart } = useContext(UserContext);
+  const { user, cart, setCart, fetchUserCart, updateUserCart } =
+    useContext(UserContext);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [totalPrice, setTotalPrice] = useState(0);
@@ -54,15 +55,17 @@ const Cart = () => {
 
   // Save cart to local storage
   useEffect(() => {
-    localStorage.setItem("guestCart", JSON.stringify(cart));
+    if (cart) {
+      // Add check for cart before stringifying
+      localStorage.setItem("guestCart", JSON.stringify(cart));
+    }
   }, [cart]);
 
   // Calculate total price
   useEffect(() => {
-    const total = cart.reduce(
-      (sum, item) => sum + (item.price || 0) * item.quantity,
-      0
-    );
+    const total = cart
+      ? cart.reduce((sum, item) => sum + (item.price || 0) * item.quantity, 0)
+      : 0;
     setTotalPrice(total.toFixed(2));
   }, [cart]);
 
@@ -81,81 +84,48 @@ const Cart = () => {
       const updatedCart = prevCart.map((p) =>
         p.id === product_id ? { ...p, quantity: updatedQuantity } : p
       );
-      updateCartOnServer(
-        product_id,
+      updateUserCart(
+        user.id, // Use user.id instead of product_id
         updatedCart.find((p) => p.id === product_id)
       );
       return updatedCart;
     });
   };
 
-  // Update cart on server
-  const updateCartOnServer = async (product_id, updatedItem) => {
-    try {
-      const response = await fetch(
-        `${BASE_URL}/api/cart/${Number(product_id)}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(updatedItem),
-        }
-      );
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      const data = await response.json();
-      console.log("Updated item on server:", data);
-    } catch (error) {
-      console.error("Error updating item:", error);
-    }
-  };
-
   // Remove product from cart
-  const removeFromCart = async (product_id) => {
-    const productIdNumber = Number(product_id);
-    if (!Number.isInteger(productIdNumber) || productIdNumber <= 0) {
-      console.error("Invalid product_id");
-      return;
-    }
-    const userId = user && user.id ? Number(user.id) : "guest";
-    try {
-      if (userId === "guest") {
-        // If user is a guest
-        // Get the guest's cart from local storage
-        let guestCart = JSON.parse(localStorage.getItem("guestCart")) || [];
-        // Remove the item from the guest's cart
-        guestCart = guestCart.filter(
-          (item) => Number(item.id) !== productIdNumber
-        );
-        // Save the updated cart in local storage
-        localStorage.setItem("guestCart", JSON.stringify(guestCart));
-        console.log("Item removed from guest cart:", product_id);
-      } else {
-        // If user is logged in
-        const token = localStorage.getItem("token");
-        const headers = token ? { Authorization: `Bearer ${token}` } : {};
-        console.log(
-          `Attempting to remove product with id ${product_id} from cart...`
-        );
+  const removeFromCart = async (productId) => {
+    if (user && user.id) {
+      const user_id = user.id;
+      try {
         const response = await fetch(
-          `${BASE_URL}/api/cart/${userId}/${productIdNumber.toString()}`,
+          `${BASE_URL}/api/cart/${user_id}/${productId}`,
           {
             method: "DELETE",
-            headers,
+            headers: { "Content-Type": "application/json" },
           }
         );
-        if (!response.ok) {
+
+        if (!response.ok)
           throw new Error(`HTTP error! status: ${response.status}`);
-        }
+
+        const updatedCart = cart.filter((item) => item.id !== productId);
+        setCart(updatedCart);
+        updateUserCart(user_id, updatedCart);
+        console.log("Logged in user's cart updated, item removed:", productId);
+        // Update the logged-in user's cart in local storage
+        localStorage.setItem(
+          `userCart_${user_id}`,
+          JSON.stringify(updatedCart)
+        );
+      } catch (error) {
+        console.error(`Error removing item from cart: ${error}`);
       }
-      setCart((prevCart) =>
-        prevCart.filter((item) => Number(item.id) !== productIdNumber)
-      );
-      console.log("Item removed from cart:", product_id);
-    } catch (error) {
-      console.error(`Error removing item: ${error}`);
+    } else {
+      let guestCart = JSON.parse(localStorage.getItem("guestCart")) || [];
+      guestCart = guestCart.filter((item) => item.id !== productId);
+      localStorage.setItem("guestCart", JSON.stringify(guestCart));
+      setCart((prevCart) => prevCart.filter((item) => item.id !== productId));
+      console.log("Guest user's cart updated, item removed:", productId);
     }
   };
 
@@ -175,30 +145,48 @@ const Cart = () => {
       {cart && cart.length === 0 ? (
         <p className="cart-empty">Your cart is empty</p>
       ) : (
-        cart.map((item, index) => (
-          <div key={index} className="cart-item">
-            <img src={item.image} alt={item.name} className="cart-item-image" />
-            <p className="cart-item-id">Product ID: {item.id}</p>
-            <div className="cart-item-quantity">
-              Quantity:
-              <input
-                type="number"
-                value={item.quantity}
-                onChange={(e) => changeQuantity(item.id, e.target.value)}
-                className="quantity-input"
+        cart &&
+        cart.map(
+          (
+            item,
+            index // Add check for cart before mapping
+          ) => (
+            <div key={index} className="cart-item">
+              <img
+                src={item.image}
+                alt={item.name}
+                className="cart-item-image"
               />
+              <p className="cart-item-id">Product ID: {item.id}</p>
+              <div className="cart-item-quantity">
+                Quantity:
+                <input
+                  type="number"
+                  value={item.quantity}
+                  onChange={(e) => changeQuantity(item.id, e.target.value)}
+                  className="quantity-input"
+                />
+              </div>
+              <p className="cart-item-price">
+                Price: $
+                {item.price && item.quantity
+                  ? (Number(item.price) * Number(item.quantity)).toFixed(2)
+                  : "0.00"}
+              </p>
+              <button
+                onClick={() => {
+                  if (item && typeof item.product_id === "number") {
+                    removeFromCart(item.product_id);
+                  } else {
+                    console.error("Invalid item:", item);
+                  }
+                }}
+              >
+                Remove from cart
+              </button>
             </div>
-            <p className="cart-item-price">
-              Price: $
-              {item.price && item.quantity
-                ? (Number(item.price) * Number(item.quantity)).toFixed(2)
-                : "0.00"}
-            </p>
-            <button onClick={() => removeFromCart(Number(item.id))}>
-              Remove from cart
-            </button>
-          </div>
-        ))
+          )
+        )
       )}
       <p className="cart-total">Total: ${totalPrice}</p>
       <Checkout cart={cart} />

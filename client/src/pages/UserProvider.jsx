@@ -17,19 +17,27 @@ const fetchUserCart = async (user_id) => {
   }
   const data = await response.json();
 
-  if (!data.cart || data.cart.length === 0) {
+  // If the server responds with an object without a 'cart' property or an empty array, return an empty array
+  if (!data.cart) {
     console.log("User has no items in cart");
+    return [];
   } else {
     console.log(`Fetched user cart: ${JSON.stringify(data.cart)}`);
+    return data.cart;
   }
-
-  return data.cart;
 };
 
 const updateUserCart = async (user_id, cart) => {
-  // Check if user_id and cart are provided
-  if (!user_id || !cart) {
-    console.error("Missing user_id or cart");
+  // Log user_id and cart
+  console.log("user_id:", user_id);
+  console.log("cart:", cart);
+  // Check if user_id and cart are provided and valid
+  if (
+    !user_id ||
+    !Array.isArray(cart) ||
+    !cart.every((item) => item.product_id && Number.isInteger(item.quantity))
+  ) {
+    console.error("Missing or invalid user_id or cart");
     return;
   }
   const response = await fetch(`${BASE_URL}/api/cart/${user_id}`, {
@@ -37,7 +45,13 @@ const updateUserCart = async (user_id, cart) => {
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ user_id, cart }), // Send user_id and cart in the request body
+    body: JSON.stringify({
+      user_id: user_id, // No need to convert user_id to a string
+      cart: cart.map((item) => ({
+        product_id: item.product_id, // No need to convert product_id to a string
+        quantity: item.quantity, // No need to convert quantity to a string
+      })),
+    }), // Send user_id and cart in the request body
   });
   if (!response.ok) {
     throw new Error(`HTTP error! status: ${response.status}`);
@@ -46,6 +60,7 @@ const updateUserCart = async (user_id, cart) => {
   console.log(`Updated user cart: ${JSON.stringify(data)}`);
   return data;
 };
+
 // This component provides user data to its children
 export const UserProvider = ({ children }) => {
   // User state
@@ -102,9 +117,16 @@ export const UserProvider = ({ children }) => {
       setIsLoading(false);
     }
   };
+
   useEffect(() => {
-    if (user && user.id) {
-      updateUserCart(user.id, cart)
+    if (user && user.id && cart) {
+      // Transform cart items to have the expected structure
+      const transformedCart = cart.map((item) => ({
+        product_id: item.product_id || item.id,
+        quantity: Number.isInteger(item.quantity) ? item.quantity : 1,
+      }));
+
+      updateUserCart(user.id, transformedCart)
         .then(() => console.log("Cart updated on server"))
         .catch((error) => console.error("Error updating cart:", error));
     }

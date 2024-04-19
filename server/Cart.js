@@ -1,9 +1,7 @@
 const express = require("express");
-
 const { client } = require("./db");
 const cartRoutes = express.Router();
 
-// SQL queries for cart operations
 const INSERT_INTO_CART = `
   INSERT INTO cart (user_id, product_id, quantity)
   VALUES ($1, $2, $3)
@@ -17,29 +15,33 @@ const SELECT_FROM_CART = `
 
 const DELETE_FROM_CART = "DELETE FROM cart WHERE user_id = $1";
 
-// SQL query to delete an item from the cart
 const DELETE_ITEM_FROM_CART = `
   DELETE FROM cart
   WHERE user_id = $1 AND product_id = $2;
 `;
 
-/// Route to add an item to the cart
 cartRoutes.post("/cart/:user_id", async (req, res, next) => {
   try {
-    const user_id = req.params.user_id;
-    const { product_id, quantity = 1 } = req.body; // Default quantity to 1 if not provided
-    if (!user_id || !product_id) {
-      res
-        .status(400)
-        .send({ success: false, message: "Missing user_id or product_id" });
+    const user_id = Number(req.params.user_id); // Convert user_id to number
+    const product_id = Number(req.body.product_id); // Convert product_id to number
+    const quantity = Number(req.body.quantity); // Convert quantity to number
+
+    if (isNaN(user_id) || isNaN(product_id)) {
+      res.status(400).send({
+        success: false,
+        message: "user_id and product_id must be numbers",
+      });
       return;
     }
 
-    // If the user_id is "guest", handle the request differently
+    if (isNaN(quantity)) {
+      res
+        .status(400)
+        .send({ success: false, message: "quantity must be a number" });
+      return;
+    }
+
     if (user_id === "guest") {
-      // Here, you can handle the request differently for guest users
-      // For example, you can store the cart items in memory or in a file
-      // For now, let's just return a success message
       res
         .status(201)
         .json({ success: true, message: "Item added to guest cart" });
@@ -55,26 +57,23 @@ cartRoutes.post("/cart/:user_id", async (req, res, next) => {
     next(err);
   }
 });
-// Route to get a user's cart
+
 cartRoutes.get("/cart/:user_id", async (req, res, next) => {
   try {
-    // Extract user_id from request parameters
     const { user_id } = req.params;
 
-    // Check if user_id is provided
-    if (!user_id) {
-      res.status(400).send({ success: false, message: "Missing user_id" });
+    if (!user_id || !Number.isInteger(Number(user_id))) {
+      res
+        .status(400)
+        .send({ success: false, message: "Missing or invalid user_id" });
       return;
     }
 
-    // SQL query to get the user's cart
     const userCart = await client.query(SELECT_FROM_CART, [user_id]);
 
-    // If the cart is empty, return an empty array
     if (userCart.rows.length === 0) {
       res.status(200).json({ cart: [] });
     } else {
-      // Send the user's cart
       res.status(200).json({ cart: userCart.rows });
     }
   } catch (err) {
@@ -82,38 +81,43 @@ cartRoutes.get("/cart/:user_id", async (req, res, next) => {
   }
 });
 
-// Route to update a user's cart
 cartRoutes.put("/cart/:user_id", async (req, res, next) => {
   try {
-    const user_id = req.params.user_id;
+    const user_id = Number(req.params.user_id); // Convert user_id to number
     const { cart } = req.body;
-    if (!user_id || !cart) {
-      res
-        .status(400)
-        .send({ success: false, message: "Missing user_id or cart" });
+    if (isNaN(user_id) || !Array.isArray(cart)) {
+      res.status(400).send({
+        success: false,
+        message: "Missing or invalid user_id or cart",
+      });
       return;
     }
-    // Assuming cart is an array of { product_id, quantity }
-    const updatePromises = cart.map((item) =>
-      client.query(
+    await client.query("BEGIN");
+    const updatePromises = cart.map((item) => {
+      const product_id = Number(item.product_id); // Convert product_id to number
+      const quantity = Number(item.quantity); // Convert quantity to number
+      if (isNaN(product_id) || isNaN(quantity)) {
+        throw new Error("Invalid cart item");
+      }
+      return client.query(
         "UPDATE cart SET quantity = $1 WHERE user_id = $2 AND product_id = $3",
-        [item.quantity, user_id, item.product_id]
-      )
-    );
+        [quantity, user_id, product_id]
+      );
+    });
     await Promise.all(updatePromises);
+    await client.query("COMMIT");
     const updatedCart = await client.query(SELECT_FROM_CART, [user_id]);
     res.status(200).json(updatedCart.rows);
   } catch (err) {
+    await client.query("ROLLBACK");
     next(err);
   }
 });
-// Route to remove an item from the cart
+
 cartRoutes.delete("/cart/:user_id/:product_id", async (req, res, next) => {
   try {
-    // Extract user_id and product_id from request parameters
     const { user_id, product_id } = req.params;
 
-    // Check if user_id and product_id are provided
     if (!user_id || !product_id) {
       res
         .status(400)
@@ -121,48 +125,51 @@ cartRoutes.delete("/cart/:user_id/:product_id", async (req, res, next) => {
       return;
     }
 
-    // SQL query to delete the item from the cart
     const deletedCartItem = await client.query(DELETE_ITEM_FROM_CART, [
       user_id,
       product_id,
     ]);
 
-    // Send the deleted item
     res.status(200).json(deletedCartItem.rows[0]);
   } catch (err) {
     next(err);
   }
 });
 
-// Route to remove all items from the cart
-cartRoutes.delete("/cart/:user_id", async (req, res, next) => {
+cartRoutes.delete("/cart/:user_id/:product_id", async (req, res, next) => {
   try {
-    // Extract user_id from request parameters
-    const { user_id } = req.params;
+    const user_id = Number(req.params.user_id);
+    const product_id = Number(req.params.product_id);
+    console.log("Deleting item from cart:", user_id, product_id);
 
-    // Check if user_id is provided
-    if (!user_id) {
-      res.status(400).send({ success: false, message: "Missing user_id" });
+    if (isNaN(user_id) || isNaN(product_id)) {
+      res
+        .status(400)
+        .send({ success: false, message: "Invalid user_id or product_id" });
       return;
     }
 
-    // SQL query to delete all items from the cart
-    await client.query(DELETE_FROM_CART, [user_id]);
+    const deletedCartItem = await client.query(DELETE_ITEM_FROM_CART, [
+      user_id,
+      product_id,
+    ]);
 
-    // Send a success message
-    res.status(200).json({ success: true, message: "Cart cleared" });
+    if (deletedCartItem.rowCount === 0) {
+      res
+        .status(404)
+        .send({ success: false, message: "Item not found in cart" });
+      return;
+    }
+
+    res.status(200).json(deletedCartItem.rows[0]);
   } catch (err) {
     next(err);
   }
 });
 
-// Error handling middleware
 cartRoutes.use((err, req, res, next) => {
-  // Log the error stack trace to the console
   console.error(err.stack);
 
-  // If the environment is development, send the error message and stack trace, else send
-  // only the error message
   if (process.env.NODE_ENV === "development") {
     res.status(500).send({ error: err.message, stack: err.stack });
   } else {
