@@ -42,7 +42,20 @@ const Store = () => {
           throw new Error(`HTTP error! status: ${response.status}`);
 
         const data = await response.json();
-        const updatedCart = [...cart, item]; // Include all product details in the cart
+        let updatedCart = [...cart]; // Copy the current cart
+
+        // Check if the item already exists in the cart
+        const existingItemIndex = updatedCart.findIndex(
+          (cartItem) => cartItem.id === item.id
+        );
+        if (existingItemIndex >= 0) {
+          // If the item already exists, update the quantity
+          updatedCart[existingItemIndex].quantity += item.quantity;
+        } else {
+          // If the item doesn't exist, add it to the cart
+          updatedCart.push(item);
+        }
+
         setCart(updatedCart);
         updateUserCart(user_id, updatedCart);
         console.log("Logged in user's cart updated with item:", item);
@@ -56,9 +69,21 @@ const Store = () => {
       }
     } else {
       let guestCart = JSON.parse(localStorage.getItem("guestCart")) || [];
-      guestCart.push(item);
+
+      // Check if the item already exists in the cart
+      const existingItemIndex = guestCart.findIndex(
+        (cartItem) => cartItem.id === item.id
+      );
+      if (existingItemIndex >= 0) {
+        // If the item already exists, update the quantity
+        guestCart[existingItemIndex].quantity += item.quantity;
+      } else {
+        // If the item doesn't exist, add it to the cart
+        guestCart.push(item);
+      }
+
       localStorage.setItem("guestCart", JSON.stringify(guestCart));
-      setCart((prevCart) => [...prevCart, item]);
+      setCart(guestCart);
       console.log("Guest user's cart updated with item:", item);
     }
   };

@@ -188,8 +188,8 @@ const AdminAccount = () => {
 
       <h2>Users</h2>
       {/* Display all users */}
-      {users.map((user) => (
-        <div key={user.id}>
+      {users.map((user, index) => (
+        <div key={index}>
           <p>Email: {user.email}</p>
           <p>Username: {user.username}</p>
         </div>

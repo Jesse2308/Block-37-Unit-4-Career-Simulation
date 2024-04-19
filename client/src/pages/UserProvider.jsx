@@ -28,34 +28,45 @@ const fetchUserCart = async (user_id) => {
 };
 
 const updateUserCart = async (user_id, cart) => {
-  // Log user_id and cart
-  console.log("user_id:", user_id);
-  console.log("cart:", cart);
-  // Check if user_id and cart are provided and valid
-  if (
-    !user_id ||
-    !Array.isArray(cart) ||
-    !cart.every((item) => item.product_id && Number.isInteger(item.quantity))
-  ) {
+  // Check if user_id is provided and cart is an array
+  if (!user_id || !Array.isArray(cart)) {
     console.error("Missing or invalid user_id or cart");
     return;
   }
+
+  console.log(
+    "cart items:",
+    cart.map((item) => ({ id: item.id, quantity: item.quantity }))
+  );
+  console.log("cart:", cart);
+
   const response = await fetch(`${BASE_URL}/api/cart/${user_id}`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      user_id: user_id, // No need to convert user_id to a string
-      cart: cart.map((item) => ({
-        product_id: item.product_id, // No need to convert product_id to a string
-        quantity: item.quantity, // No need to convert quantity to a string
-      })),
-    }), // Send user_id and cart in the request body
+      user_id: user_id,
+      cart: cart.reduce((acc, item) => {
+        // Check if item.id and item.quantity are valid
+        if (!item.id || !Number.isInteger(item.quantity)) {
+          return acc;
+        }
+
+        acc.push({
+          product_id: String(item.id),
+          quantity: String(item.quantity),
+        });
+
+        return acc;
+      }, []),
+    }),
   });
+
   if (!response.ok) {
     throw new Error(`HTTP error! status: ${response.status}`);
   }
+
   const data = await response.json();
   console.log(`Updated user cart: ${JSON.stringify(data)}`);
   return data;
@@ -122,7 +133,7 @@ export const UserProvider = ({ children }) => {
     if (user && user.id && cart) {
       // Transform cart items to have the expected structure
       const transformedCart = cart.map((item) => ({
-        product_id: item.product_id || item.id,
+        product_id: String(item.id), // Convert product_id to a string
         quantity: Number.isInteger(item.quantity) ? item.quantity : 1,
       }));
 
