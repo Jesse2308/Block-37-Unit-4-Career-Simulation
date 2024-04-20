@@ -14,33 +14,36 @@ const client = new Pool({
     process.env.DATABASE_URL || "postgres://localhost/acme_jcomApp_db",
 });
 
-// Connect to the database
-client.connect((err) => {
-  if (err) {
-    console.error("Connection error", err.stack);
-  } else {
-    console.log("Connected to the database");
-  }
-});
-
-// Ensure environment variables are set
-if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-  console.error("Missing environment variables EMAIL_USER or EMAIL_PASS");
-  process.exit(1);
-}
-
 // Define createUser function
-async function createUser({ email, password, isadmin, accountType }) {
+async function createUser({
+  username,
+  email,
+  password,
+  is_guest,
+  emailtoken,
+  verified,
+  accounttype,
+  isadmin,
+}) {
   // Hash the password before storing it
   const hashedPassword = await bcrypt.hash(password, 10);
 
   // Insert the new user into the database
   const SQL = `
-    INSERT INTO users (email, password, isadmin, accounttype)
-    VALUES ($1, $2, $3, $4)
+    INSERT INTO users (username, email, password, is_guest, emailtoken, verified, accounttype, isadmin)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
     RETURNING *;
   `;
-  const values = [email, hashedPassword, isadmin, accountType];
+  const values = [
+    username,
+    email,
+    hashedPassword,
+    is_guest,
+    emailtoken,
+    verified,
+    accounttype,
+    isadmin,
+  ];
   const result = await client.query(SQL, values);
 
   // Throw an error if the user couldn't be created
@@ -50,28 +53,6 @@ async function createUser({ email, password, isadmin, accountType }) {
 
   return result.rows[0];
 }
-
-// Create admin account
-async function createAdminAccount() {
-  try {
-    const admin = await createUser({
-      email: process.env.EMAIL_USER,
-      password: process.env.EMAIL_PASS,
-      isadmin: true,
-      accountType: "admin",
-    });
-
-    console.log("Admin account created:", admin);
-  } catch (error) {
-    console.error("Error creating admin account:", error);
-  }
-}
-
-// Call createAdminAccount when the application starts
-createAdminAccount().catch((error) => {
-  console.error("Error creating admin account:", error);
-  process.exit(1);
-});
 
 // Register a new user
 const register = async ({ email, password, isadmin = false }) => {
@@ -108,76 +89,52 @@ const register = async ({ email, password, isadmin = false }) => {
   return user;
 };
 
-// Check if a user is an admin
-const isAdmin = async (userId) => {
+// Fetch all users for an admin
+async function fetchAllUsers() {
   const SQL = `
-    SELECT isadmin FROM users WHERE id=$1;
+    SELECT * FROM users;
   `;
-  const response = await client.query(SQL, [userId]);
-  if (!response.rows.length || !response.rows[0].isadmin) {
-    const error = Error("not authorized");
-    error.status = 401;
-    throw error;
-  }
-  return true;
-};
-
-// Admin account creation
-async function createAdminAccount() {
-  try {
-    const SQL = `
-      SELECT * FROM users WHERE email = $1;
-    `;
-    const values = ["tinkersecom@gmail.com"];
-    const result = await client.query(SQL, values);
-
-    if (result.rows.length > 0) {
-      const user = result.rows[0];
-
-      // User with this email already exists
-      if (user.isadmin) {
-        // User is already an admin, do nothing
-        return;
-      } else {
-        // User is not an admin, update their isadmin column
-        const updateSQL = `
-          UPDATE users SET isadmin = true WHERE email = $1;
-        `;
-        await client.query(updateSQL, values);
-      }
-    } else {
-      // User with this email doesn't exist, create a new user
-      await createUser({
-        email: "tinkersecom@gmail.com",
-        password: "Ilovecode29",
-        isadmin: true,
-        accountType: "admin",
-      });
-    }
-  } catch (error) {
-    console.error("Error creating admin account:", error);
-  }
+  const response = await client.query(SQL);
+  return response.rows;
 }
 
-// Setup routes for the application
-function setupRoutes(app) {
-  app.get("/admin/products", adminOnly, async (req, res) => {
-    const products = await fetchProducts();
-    res.json(products);
-  });
+async function getUserById(userId) {
+  const SQL = `
+    SELECT * FROM users
+    WHERE id = $1;
+  `;
+
+  const values = [userId];
+
+  // Assuming 'client' is your PostgreSQL client
+  const result = await client.query(SQL, values);
+
+  return result.rows[0]; // Return the user
+}
+async function getUserByEmail(email) {
+  const SQL = `
+    SELECT * FROM users WHERE email = $1;
+  `;
+  const response = await client.query(SQL, [email]);
+  return response.rows[0];
 }
 
-// Middleware to check if the user is an admin
-const adminOnly = async (req, res, next) => {
-  const token = req.headers.authorization.split(" ")[1];
-  const user = await findUserWithToken(token);
-  if (!user.isadmin) {
-    const error = Error("not authorized");
-    error.status = 401;
-    throw error;
-  }
-  next();
-};
+async function createUserTable() {
+  const SQL = `
+    CREATE TABLE IF NOT EXISTS users (
+      id SERIAL PRIMARY KEY,
+      username VARCHAR(255) NOT NULL,
+      email VARCHAR(255) NOT NULL UNIQUE,
+      password VARCHAR(255) NOT NULL,
+      is_guest BOOLEAN DEFAULT false,
+      emailtoken VARCHAR(255),
+      verified BOOLEAN DEFAULT false,
+      accounttype VARCHAR(255) DEFAULT 'standard',
+      isadmin BOOLEAN DEFAULT false
+    );
+  `;
+  await client.query(SQL);
+}
 
 // Fetch all products
 const fetchProducts = async () => {
@@ -186,27 +143,6 @@ const fetchProducts = async () => {
   `;
   const response = await client.query(SQL);
   return response.rows;
-};
-
-// Edit a product
-const editProduct = async (productId, productData) => {
-  const { name, category, price, description, image, stock } = productData;
-  const SQL = `
-  UPDATE products
-  SET name = $1, category = $2, price = $3, description = $4, image = $5, stock = $6
-  WHERE id = $7
-  RETURNING *;
-  `;
-  const response = await client.query(SQL, [
-    name,
-    category,
-    price,
-    description,
-    image,
-    stock,
-    productId,
-  ]);
-  return response.rows[0];
 };
 
 // Fetch all users
@@ -259,140 +195,74 @@ const findUserWithToken = async (token) => {
   return response.rows[0];
 };
 
-// Fetch all users with username and email for admin
-const fetchAdminUsers = async () => {
-  try {
-    const SQL = `
-    SELECT username, email FROM users;
-    `;
-    const response = await client.query(SQL);
-    return response.rows;
-  } catch (error) {
-    console.error("Error fetching admin users:", error);
-    throw error;
-  }
-};
-
-// Table creation functions
-const createUserTable = async () => {
+const createProductsTable = async () => {
   const SQL = `
-  CREATE TABLE IF NOT EXISTS users (
-    id SERIAL PRIMARY KEY,
-    email VARCHAR(255) UNIQUE NOT NULL,
-    password VARCHAR(255) NOT NULL,
-    accountType VARCHAR(255) NOT NULL,
-    emailToken VARCHAR(255),
-    verified BOOLEAN DEFAULT false
-  );
-  `;
-  await client.query(SQL);
-
-  const alterSQL = `
-  ALTER TABLE users
-  ADD COLUMN IF NOT EXISTS isadmin BOOLEAN DEFAULT false;
-  `;
-  await client.query(alterSQL);
-};
-
-// Get a user by their ID
-async function getUserById(userId) {
-  const SQL = `
-    SELECT * FROM users WHERE id = $1;
-  `;
-  const response = await client.query(SQL, [userId]);
-  if (response.rows.length === 0) {
-    throw new Error("User not found");
-  }
-  return response.rows[0];
-}
-const createGuestCartTable = async () => {
-  const SQL = `
-    CREATE TABLE IF NOT EXISTS guest_cart (
+    CREATE TABLE IF NOT EXISTS products (
       id SERIAL PRIMARY KEY,
-      product_id INTEGER NOT NULL,
+      name VARCHAR(255) NOT NULL,
+      category VARCHAR(255) NOT NULL,
+      price DECIMAL NOT NULL,
+      description TEXT NOT NULL,
+      image TEXT NOT NULL,
       quantity INTEGER NOT NULL
     );
   `;
   await client.query(SQL);
 };
 
-async function createProductTableWithSeller() {
-  try {
-    const SQL = `
-    CREATE TABLE IF NOT EXISTS products (
-      id SERIAL PRIMARY KEY,
-      name VARCHAR(255) NOT NULL,
-      price DECIMAL(10, 2) NOT NULL,
-      details TEXT,
-      quantity INT NOT NULL,
-      seller_id INT REFERENCES users(id)
-    );
-    `;
-    await client.query(SQL);
-    console.log("Created products table with seller");
-  } catch (error) {
-    console.error("Error creating products table with seller", error);
-    throw error;
+// Add a new product
+async function addProduct(
+  name,
+  category,
+  price,
+  description,
+  imageUrl,
+  quantity
+) {
+  // Check if the product already exists
+  const checkSQL = `
+    SELECT * FROM products WHERE name = $1;
+  `;
+  const checkResponse = await client.query(checkSQL, [name]);
+  if (checkResponse.rows.length > 0) {
+    console.log(`Product with name ${name} already exists`);
+    return;
   }
+
+  // If not, insert the new product
+  const SQL = `
+    INSERT INTO products (name, category, price, description, image, quantity)
+    VALUES ($1, $2, $3, $4, $5, $6)
+    RETURNING *;
+  `;
+  const values = [name, category, price, description, imageUrl, quantity];
+  const result = await client.query(SQL, values);
+
+  // Throw an error if the product couldn't be added
+  if (result.rows.length === 0) {
+    throw new Error("Error adding product");
+  }
+
+  return result.rows[0];
 }
 
-const createProductTable = async () => {
+const assignCartToUser = async (user, cart) => {
   const SQL = `
-  CREATE TABLE IF NOT EXISTS products (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    price NUMERIC(10, 2) NOT NULL,
-    details TEXT,
-    quantity INTEGER NOT NULL,
-    seller_id INTEGER REFERENCES users(id)
-  );
+    UPDATE cart 
+    SET user_id = $1
+    WHERE id = $2
+    RETURNING *;
   `;
-  await client.query(SQL);
+
+  const values = [user.id, cart.id];
+
+  // Assuming 'client' is your PostgreSQL client
+  const result = await client.query(SQL, values);
+
+  return result.rows[0]; // Return the updated cart
 };
-
-const createCartTable = async () => {
-  const SQL = `
-  DROP TABLE IF EXISTS cart CASCADE;
-  CREATE TABLE Cart (
-    cart_id SERIAL PRIMARY KEY,
-    user_id INT,
-    product_id INT,
-    quantity INT NOT NULL,
-    FOREIGN KEY(user_id) REFERENCES Users(id),
-    FOREIGN KEY(product_id) REFERENCES Products(id)
-  );
-  `;
-  await client.query(SQL);
-};
-
-const createOrderTable = async () => {
-  const SQL = `
-  DROP TABLE IF EXISTS orders CASCADE;
-  CREATE TABLE Orders (
-    id SERIAL PRIMARY KEY,
-    user_id INT,
-    date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    total DECIMAL(10, 2),
-    FOREIGN KEY(user_id) REFERENCES Users(id)
-  );
-  `;
-  await client.query(SQL);
-};
-
-const createOrderProductTable = async () => {
-  const SQL = `
-  DROP TABLE IF EXISTS OrderItems CASCADE;
-  CREATE TABLE OrderItems ( 
-    order_id INT,
-    product_id INT,
-    quantity INT NOT NULL,
-    PRIMARY KEY(order_id, product_id),
-    FOREIGN KEY(order_id) REFERENCES Orders(id),
-    FOREIGN KEY(product_id) REFERENCES Products(id)
-  );
-  `;
-  await client.query(SQL);
-
+// Define an async function to add products
+async function addProducts() {
   await addProduct(
     "Basic Controller",
     "Controller",
@@ -465,125 +335,25 @@ const createOrderProductTable = async () => {
     "https://tinyurl.com/24o53crt",
     75
   );
-};
+}
 
-const addProduct = async (name, category, price, description, image, stock) => {
-  // Check if a product with the same name already exists
-  const checkSQL = `
-  SELECT * FROM products WHERE name = $1;
-  `;
-  const checkResponse = await client.query(checkSQL, [name]);
-  if (checkResponse.rows.length > 0) {
-    console.log(`Product with name ${name} already exists.`);
-    return;
-  }
-
-  // If not, insert the new product
-  const SQL = `
-  INSERT INTO Products (name, category, price, description, image, stock)
-  VALUES ($1, $2, $3, $4, $5, $6);
-  `;
-  await client.query(SQL, [name, category, price, description, image, stock]);
-
-  // Log that the product was added
-  console.log(`Added product: ${name}`);
-};
-
-const deleteProduct = async (productId, sellerId) => {
-  const SQL = `
-  DELETE FROM products
-  WHERE id = $1 AND seller_id = $2;
-  `;
-  await client.query(SQL, [productId, sellerId]);
-};
-
-const deleteDuplicates = async () => {
-  const query = `
-  DELETE FROM products
-  WHERE id IN (
-    SELECT id
-    FROM (
-      SELECT id,
-      ROW_NUMBER() OVER( PARTITION BY name, details ORDER BY id ) AS row_num
-      FROM products
-    ) t
-    WHERE t.row_num > 1
-  );
-  `;
-
-  try {
-    const res = await client.query(query);
-    console.log("Duplicates deleted successfully");
-  } catch (err) {
-    console.error("Error deleting duplicates:", err);
-  }
-};
-
-// Column addition functions
-const addDetailsColumn = async () => {
-  const SQL = `
-  ALTER TABLE products
-  ADD COLUMN IF NOT EXISTS details TEXT;
-  `;
-  await client.query(SQL);
-};
-
-const addQuantityColumn = async () => {
-  await client.query(
-    "ALTER TABLE products ADD COLUMN IF NOT EXISTS quantity INTEGER DEFAULT 0 NOT NULL;"
-  );
-  console.log("Quantity column added successfully.");
-};
-
-const addSellerIdColumn = async () => {
-  const SQL = `
-  ALTER TABLE products
-  ADD COLUMN IF NOT EXISTS seller_id INTEGER REFERENCES users(id);
-  `;
-  await client.query(SQL);
-};
-
-// Execute column addition functions
-(async () => {
-  try {
-    await addQuantityColumn();
-    await addSellerIdColumn();
-    await deleteDuplicates();
-    await createAdminAccount();
-    await createOrderProductTable();
-    await createGuestCartTable();
-  } catch (err) {
-    console.error(err);
-  }
-})();
-
-createOrderProductTable().catch((err) =>
-  console.error("Error creating order product table:", err.stack)
-);
+// Call the function
+addProducts().catch(console.error);
 
 // Exports
 module.exports = {
   client,
-  createUserTable,
-  createProductTable,
-  createCartTable,
-  createOrderTable,
-  createOrderProductTable,
-  addProduct,
   createUser,
   authenticate,
   findUserWithToken,
   fetchUsers,
-  register,
-  createProductTableWithSeller,
-  addDetailsColumn,
-  addQuantityColumn,
-  deleteProduct,
-  isAdmin,
-  fetchProducts,
-  editProduct,
-  fetchAdminUsers,
-  setupRoutes,
-  createGuestCartTable,
   getUserById,
+  register,
+  fetchProducts,
+  addProduct,
+  createUserTable,
+  createProductsTable,
+  assignCartToUser,
+  fetchAllUsers,
+  getUserByEmail,
 };

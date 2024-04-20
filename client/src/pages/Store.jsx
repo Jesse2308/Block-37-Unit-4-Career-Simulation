@@ -5,6 +5,7 @@ import { UserContext } from "./UserProvider";
 
 const BASE_URL = "http://localhost:3000";
 
+// Product component to display individual product details and Add to Cart and Buy Now buttons
 const Product = ({ product, addToCart, buyNow }) => (
   <div key={product.id}>
     <h3>{product.name}</h3>
@@ -16,6 +17,7 @@ const Product = ({ product, addToCart, buyNow }) => (
   </div>
 );
 
+// Store component to display all products and handle cart operations
 const Store = () => {
   const { user, cart, setCart, updateUserCart } = useContext(UserContext);
   const [products, setProducts] = useState([]);
@@ -24,90 +26,89 @@ const Store = () => {
   const navigate = useNavigate();
 
   const addToCart = async (productDetails, quantity = 1) => {
-    const item = { ...productDetails, quantity };
+    const item = { id: productDetails.id, quantity }; // Only include product_id and quantity
 
     if (user && user.id) {
-      const user_id = user.id;
-      try {
-        const response = await fetch(`${BASE_URL}/api/cart/${user_id}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            product_id: String(item.id), // Convert product_id to a string
-            quantity: String(item.quantity), // Convert quantity to a string
-          }),
-        });
-
-        if (!response.ok)
-          throw new Error(`HTTP error! status: ${response.status}`);
-
-        const data = await response.json();
-
-        setCart((prevCart) => {
-          let updatedCart = [...prevCart]; // Copy the current cart
-
-          // Check if the item already exists in the cart
-          const existingItemIndex = updatedCart.findIndex(
-            (i) => i.id === item.id
-          );
-          if (existingItemIndex !== -1) {
-            // If the item already exists, update the quantity
-            updatedCart[existingItemIndex].quantity += item.quantity;
-          } else {
-            // If the item doesn't exist, add it to the cart
-            updatedCart.push(data); // Add the data returned from the server to the cart
-          }
-
-          console.log("Logged in user's cart after adding item:", updatedCart);
-
-          updateUserCart(user_id, updatedCart);
-          // Save the logged-in user's cart under a different key in local storage
-          localStorage.setItem(
-            `userCart_${user_id}`,
-            JSON.stringify(updatedCart)
-          );
-
-          return updatedCart;
-        });
-      } catch (error) {
-        console.error(`Error adding item to cart: ${error}`);
-      }
+      addToCartLoggedInUser(item);
     } else {
-      // Add the new item to the state
-      let guestCart = JSON.parse(localStorage.getItem("guestCart")) || [];
+      addToCartGuestUser(item);
+    }
+  };
+  const addToCartLoggedInUser = async (item) => {
+    const user_id = user.id;
+    try {
+      const response = await fetch(`${BASE_URL}/api/cart/${user_id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          product_id: String(item.id), // Convert product_id to a string
+          quantity: String(item.quantity), // Convert quantity to a string
+        }),
+      });
 
-      // Check if the item already exists in the guest cart
-      const existingItemIndex = guestCart.findIndex((i) => i.id === item.id);
-      if (existingItemIndex !== -1) {
-        // Update the quantity of the existing item
-        guestCart[existingItemIndex].quantity += item.quantity;
-      } else {
-        // Add the new item to the guest cart
-        guestCart.push(item);
+      if (!response.ok) {
+        console.error(`HTTP error! status: ${response.status}`);
+        return;
       }
 
-      localStorage.setItem("guestCart", JSON.stringify(guestCart));
-      setCart((prevCart) => {
-        const existingItemIndex = prevCart.findIndex((i) => i.id === item.id);
-        if (existingItemIndex !== -1) {
-          // Update the quantity of the existing item in the state
-          const updatedCart = [...prevCart];
-          updatedCart[existingItemIndex].quantity += item.quantity;
-          console.log(
-            "Guest user's cart updated with item:",
-            updatedCart[existingItemIndex]
-          );
-          return updatedCart;
+      const data = await response.text();
+      console.log("Server response:", data); // Log the server response
+
+      let updatedCart;
+      if (!data) {
+        // If the server doesn't return a response, manually update the cart
+        updatedCart = [...cart];
+        const existingItem = updatedCart.find((p) => p.product_id === item.id);
+        if (existingItem) {
+          existingItem.quantity += item.quantity;
         } else {
-          // Add the new item to the state
-          const updatedCart = [...prevCart, item];
-          console.log("Guest user's cart updated with item:", item);
-          return updatedCart;
+          updatedCart.push(item);
         }
-      });
+      } else {
+        const responseData = JSON.parse(data);
+        // If the server response is an object, convert it to an array
+        updatedCart = Array.isArray(responseData)
+          ? responseData
+          : [responseData];
+      }
+
+      console.log("Logged in user's cart after adding item:", updatedCart);
+
+      setCart(updatedCart);
+      updateUserCart(user_id, updatedCart);
+      // Save the logged-in user's cart under a different key in local storage
+      localStorage.setItem(`userCart_${user_id}`, JSON.stringify(updatedCart));
+    } catch (error) {
+      console.error(`Error adding item to cart: ${error}`);
     }
   };
 
+  // Function to add a product to the cart for a guest user
+  const addToCartGuestUser = (item) => {
+    // Add the new item to the state
+    let guestCart = JSON.parse(localStorage.getItem("guestCart")) || [];
+
+    // Check if the item already exists in the guest cart
+    const existingItemIndex = guestCart.findIndex((i) => i.id === item.id);
+    if (existingItemIndex !== -1) {
+      // Update the quantity of the existing item
+      guestCart[existingItemIndex].quantity += item.quantity;
+    } else {
+      // Add the new item to the guest cart
+      guestCart.push(item);
+    }
+
+    if (guestCart.length > 2) {
+      alert(
+        "Please register for a buyer's account to add more items. If you want to sell items, register for a seller's account."
+      );
+    }
+
+    localStorage.setItem("guestCart", JSON.stringify(guestCart));
+    setCart(guestCart);
+  };
+
+  // Function to navigate to the cart page
   const viewCart = () => {
     navigate("/cart");
     if (JSON.parse(localStorage.getItem("cart")) && user) {
@@ -115,6 +116,7 @@ const Store = () => {
     }
   };
 
+  // Function to fetch all products from the server
   const fetchProducts = async () => {
     setIsLoading(true);
     setError(null);
@@ -130,6 +132,7 @@ const Store = () => {
     }
   };
 
+  // Function to handle the Buy Now operation
   const buyNow = (product) => {
     const updatedProduct = {
       ...product,
@@ -144,14 +147,17 @@ const Store = () => {
     alert("You have purchased this item: " + product.name);
   };
 
+  // useEffect hook to update the cart in local storage whenever the cart state changes
   useEffect(() => {
     localStorage.setItem("cart", JSON.stringify(cart));
-  }, [cart]);
+  }, []);
 
+  // useEffect hook to fetch all products when the component mounts
   useEffect(() => {
     fetchProducts();
   }, []);
 
+  // Render the products or loading/error messages
   return (
     <div className="centered-div">
       <button id="view-cart-button" onClick={viewCart}>

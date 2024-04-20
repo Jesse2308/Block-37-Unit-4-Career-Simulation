@@ -4,22 +4,7 @@ const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
 const nodemailer = require("nodemailer");
 const crypto = require("crypto");
-const { client, getUserById } = require("./db");
-
-// SQL queries
-const DELETE_FROM_CART = `
-  DELETE FROM cart
-  WHERE user_id = $1;
-`;
-
-const INSERT_INTO_CART = `
-  INSERT INTO cart (user_id, product_id, quantity)
-  VALUES ($1, $2, $3)
-  RETURNING *;
-`;
-const SELECT_FROM_CART = `
-  SELECT * FROM cart WHERE user_id = $1;
-`;
+const { client, getUserById, getUserByEmail } = require("./db");
 
 // Create Express router
 const authRoutes = express.Router();
@@ -54,7 +39,7 @@ module.exports = authRoutes;
 
 // Register a new user
 async function registerUser(req, res, next) {
-  const { email, password } = req.body;
+  const { email, password, accountType } = req.body;
   if (!email || !password) {
     res
       .status(400)
@@ -62,17 +47,42 @@ async function registerUser(req, res, next) {
     return;
   } else {
     try {
+      // Check if the user already exists
+      const existingUser = await getUserByEmail(email);
+      if (existingUser) {
+        return res.status(400).json({ message: "User already exists" });
+      }
+
+      // Begin a transaction
+      await client.query("BEGIN");
+
+      // Hash the password
       const hashedPassword = await bcrypt.hash(password, 10);
+
       const SQL = `
-            INSERT INTO users (email, password)
-            VALUES ($1, $2)
+            INSERT INTO users (email, password, accountType)
+            VALUES ($1, $2, $3)
             RETURNING *;
             `;
-      const response = await client.query(SQL, [email, hashedPassword]);
+      const response = await client.query(SQL, [
+        email,
+        hashedPassword,
+        accountType,
+      ]);
       const user = response.rows[0];
-      const token = generateToken(user);
+
+      // Generate a token
+      const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, {
+        expiresIn: "1h",
+      });
+
+      // If everything is successful, commit the transaction
+      await client.query("COMMIT");
+
       res.send({ success: true, user, token });
     } catch (error) {
+      // If there's an error, rollback the transaction
+      await client.query("ROLLBACK");
       next(error);
     }
   }
@@ -92,35 +102,13 @@ async function loginUser(req, res, next) {
       if (user) {
         const token = generateToken(user);
 
-        // Fetch the guest cart
-        const guestCart = await client.query(SELECT_FROM_CART, [0]); // use 0 for guest user_id
-
-        // Fetch the user's cart
-        const userCart = await client.query(SELECT_FROM_CART, [user.id]);
-
-        // Merge the two carts
-        const mergedCart = mergeCarts(guestCart.rows, userCart.rows);
-
-        // Update the user's cart with the merged cart
-        await client.query(DELETE_FROM_CART, [user.id]);
-        for (const item of mergedCart) {
-          await client.query(INSERT_INTO_CART, [
-            user.id,
-            item.product_id,
-            item.quantity,
-          ]);
-        }
-
-        // Clear the guest cart
-        await client.query(DELETE_FROM_CART, [0]); // use 0 for guest user_id
-
         res.json({
           success: true,
           userId: user.id,
           token,
           email: user.email,
           isadmin: user.isadmin, // Include isadmin in the response
-          message: "User logged in and carts merged",
+          message: "User logged in",
         });
       } else {
         res
@@ -131,30 +119,6 @@ async function loginUser(req, res, next) {
       next(error);
     }
   }
-}
-
-// Function to merge two carts
-function mergeCarts(guestCart, userCart) {
-  // Create a new array to hold the merged cart
-  const mergedCart = [...userCart];
-
-  // For each item in the guest cart
-  for (const guestItem of guestCart) {
-    // Check if the item is already in the user's cart
-    const userItem = userCart.find(
-      (item) => item.product_id === guestItem.product_id
-    );
-
-    if (userItem) {
-      // If the item is already in the user's cart, increase the quantity
-      userItem.quantity += guestItem.quantity;
-    } else {
-      // If the item is not in the user's cart, add it
-      mergedCart.push(guestItem);
-    }
-  }
-
-  return mergedCart;
 }
 
 async function getCurrentUser(req, res) {

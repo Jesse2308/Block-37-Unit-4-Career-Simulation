@@ -4,13 +4,12 @@ const { client } = require("./db");
 // Create Express router
 const productRoutes = express.Router();
 
-// Route to fetch all products
 productRoutes.get("/products", async (req, res, next) => {
   try {
     // SQL query to fetch all products
     const SQL = `
         SELECT * FROM products;
-        `;
+    `;
     const response = await client.query(SQL);
 
     // Send the products

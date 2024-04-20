@@ -1,41 +1,67 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import "./Register.css";
+import { UserContext } from "./UserProvider";
+import { useContext } from "react";
 
-const Register = ({ token, setToken }) => {
+import "./Register.css";
+const BASE_URL = "http://localhost:3000";
+
+// Register component for user registration
+const Register = () => {
+  // State variables for form inputs and error message
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [accountType, setAccountType] = useState("buyer"); // Default to 'buyer'
   const [error, setError] = useState(null);
+  const { setToken } = useContext(UserContext);
 
+  // useNavigate hook for redirecting users
   const navigate = useNavigate();
 
+  // Function to handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
+    // Check if passwords match
     if (password !== confirmPassword) {
       setError("Passwords do not match");
       return;
     }
+    console.log(
+      `Email: ${email}, Password: ${password}, Account Type: ${accountType}`
+    ); // Log the form data
     try {
-      const response = await fetch("http://localhost:3000/api/register", {
+      // Send a POST request to the /api/register endpoint
+      const response = await fetch(`${BASE_URL}/api/register`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ email, password, accountType }), // Include accountType
       });
+      console.log(
+        `Response status: ${response.status}, Response ok: ${response.ok}`
+      ); // Log the response status
       if (!response.ok) {
         throw new Error("Failed to register");
       }
+      const data = await response.json(); // Extract data from the response
+      console.log(`Response data: ${JSON.stringify(data)}`); // Log the response data
+      if (!data.success) {
+        throw new Error(data.message || "Registration failed"); // Use the server's error message if available
+      }
       console.log("successfully registered");
+      setToken(data.token); // Set the token state
+      // Redirect to the login page after successful registration
       navigate("/login");
     } catch (error) {
+      console.error(`Error: ${error.message}`); // Log the error message
       setError(error.message);
     }
   };
 
+  // Render the registration form
   return (
     <div className="register">
       <h2 className="register-title">Register</h2>

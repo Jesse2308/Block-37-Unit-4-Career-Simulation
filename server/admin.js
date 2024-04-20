@@ -7,7 +7,7 @@ const {
   one,
   none,
   getUserById,
-  fetchAdminUsers,
+  fetchAllUsers,
 } = require("./db");
 
 // Middleware to check if user is admin
@@ -48,7 +48,7 @@ async function isAdmin(req, res, next) {
 adminRoutes.get("/users", isAdmin, async (req, res) => {
   try {
     console.log("Fetching users from the database...");
-    const users = await fetchAdminUsers();
+    const users = await fetchAllUsers();
     console.log(`Fetched ${users.length} users from the database.`);
     res.json(users);
   } catch (err) {

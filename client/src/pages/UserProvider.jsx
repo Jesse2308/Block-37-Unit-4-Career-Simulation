@@ -15,16 +15,15 @@ const fetchUserCart = async (user_id) => {
   if (!response.ok) {
     throw new Error(`HTTP error! status: ${response.status}`);
   }
-  const data = await response.json();
+  let data = await response.json();
 
   // If the server responds with an object without a 'cart' property or an empty array, return an empty array
-  if (!data.cart) {
-    console.log("User has no items in cart");
-    return [];
-  } else {
-    console.log(`Fetched user cart: ${JSON.stringify(data.cart)}`);
-    return data.cart;
+  if (!Array.isArray(data)) {
+    data = [data];
   }
+
+  console.log(`Fetched user cart: ${JSON.stringify(data)}`);
+  return data;
 };
 
 // This component provides user data to its children
@@ -40,65 +39,69 @@ export const UserProvider = ({ children }) => {
 
   // Cart state
   const [cart, setCart] = useState(() => {
-    // Try to load the cart from local storage
-    let savedCart = localStorage.getItem("cart");
-    if (savedCart && savedCart !== "undefined") {
-      console.log("Loaded cart from local storage:", savedCart);
-      return JSON.parse(savedCart);
+    let savedCart;
+    if (user && user.id) {
+      savedCart = localStorage.getItem(`userCart_${user.id}`);
     } else {
-      console.log("No cart found in local storage. Initializing empty cart.");
-      return [];
+      savedCart = localStorage.getItem("guestCart");
     }
+
+    if (savedCart && savedCart !== "undefined") {
+      const parsedCart = JSON.parse(savedCart);
+      if (Array.isArray(parsedCart)) {
+        console.log("Loaded cart from local storage:", parsedCart);
+        return parsedCart;
+      }
+    }
+
+    console.log("No cart found in local storage. Initializing empty cart.");
+    return [];
   });
 
   const updateUserCart = async (user_id, cart) => {
-    try {
-      const response = await fetch(`${BASE_URL}/api/cart/${user_id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(cart),
-      });
+    const cartArray = Array.isArray(cart) ? cart : [cart];
+    const updatedCart = cartArray.map((item) => ({
+      product_id: String(item.id),
+      quantity: Number.isInteger(item.quantity) ? item.quantity : 1,
+    }));
+    console.log("Updating cart for user with id:", user_id);
+    console.log("Updated cart:", updatedCart);
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+    // Get the cart id for the user
+    const cartResponse = await fetch(`${BASE_URL}/api/cart/${user_id}`);
+    const cartData = await cartResponse.json();
+    if (cartData.cart) {
+      const cartId = cartData.cart.id;
+      console.log(`Cart ID for user with id ${user_id}: ${cartId}`);
+
+      try {
+        const response = await fetch(`${BASE_URL}/api/cart/${cartId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ updatedCart }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        console.log(`Updated user cart: ${JSON.stringify(data)}`);
+        return data;
+      } catch (error) {
+        console.error("Error:", error);
       }
-
-      const data = await response.json();
-      console.log(`Updated user cart: ${JSON.stringify(data)}`);
-      return data;
-    } catch (error) {
-      console.error("Error:", error);
     }
   };
 
-  useEffect(() => {
-    if (user && user.id && cart) {
-      updateUserCart(user.id, cart);
-    }
-  }, [cart, user]);
-
-  useEffect(() => {
-    if (user && user.id && cart) {
-      // Transform cart items to have the expected structure
-      const transformedCart = cart.map((item) => ({
-        product_id: String(item.id), // Convert product_id to a string
-        quantity: Number.isInteger(item.quantity) ? item.quantity : 1,
-      }));
-
-      updateUserCart(user.id, transformedCart)
-        .then(() => console.log("Cart updated on server"))
-        .catch((error) => console.error("Error updating cart:", error));
-    }
-  }, [cart, user]);
-
   // Function to fetch user data
   const fetchUserData = async () => {
-    const token = localStorage.getItem("token"); // replace this with the actual way you're storing the token
+    const tokenFromLocalStorage = localStorage.getItem("token");
 
-    console.log("Token retrieved from localStorage:", token);
+    console.log("Token retrieved from localStorage:", tokenFromLocalStorage);
 
-    if (!token) {
-      console.error("No token in localStorage");
+    if (!tokenFromLocalStorage) {
+      console.log("No token in localStorage");
       setIsLoading(false);
       return;
     }
@@ -106,7 +109,7 @@ export const UserProvider = ({ children }) => {
     try {
       const response = await fetch(`${BASE_URL}/api/me`, {
         headers: {
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${tokenFromLocalStorage}`,
         },
       });
 
@@ -116,6 +119,7 @@ export const UserProvider = ({ children }) => {
         const data = await response.json();
         console.log("Data retrieved from /api/me:", data);
         setCurrentUser(data.user);
+        setToken(tokenFromLocalStorage); // Set the token state with the token from local storage
         setIsLoading(false);
       } else {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -126,10 +130,15 @@ export const UserProvider = ({ children }) => {
     }
   };
 
-  // When the component mounts, fetch the user data
+  // When the component mounts, fetch the user data and update the cart
   useEffect(() => {
     console.log("currentUser state in UserProvider:", user);
     fetchUserData();
+
+    if (user && user.id && cart) {
+      console.log(`Updating cart for user with id ${user.id}:`, cart);
+      updateUserCart(user.id, cart);
+    }
   }, []);
 
   // Function to log out
@@ -141,21 +150,23 @@ export const UserProvider = ({ children }) => {
     setToken(null);
     // Clear local storage
     localStorage.removeItem("token");
-    localStorage.removeItem("cart");
+    localStorage.removeItem(`userCart_${user.id}`);
     // Add any other logout logic you need
   };
+
+  // Update the token in local storage whenever the token state changes
+  useEffect(() => {
+    if (token) {
+      localStorage.setItem("token", token);
+    } else {
+      localStorage.removeItem("token");
+    }
+  }, [token]);
 
   // Log the current user's ID whenever the user state changes
   useEffect(() => {
     console.log("Current user ID in UserProvider:", user ? user.id : "No user");
-  }, []);
-
-  useEffect(() => {
-    // Update the cart on the server whenever the cart state changes
-    if (user && user.id && cart) {
-      updateUserCart(user.id, cart);
-    }
-  }, [cart, user]);
+  }, [user]);
 
   // Provide the user data to children
   return (
@@ -180,5 +191,4 @@ export const UserProvider = ({ children }) => {
     </UserContext.Provider>
   );
 };
-
 export default UserProvider;

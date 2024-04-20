@@ -6,37 +6,36 @@ import Checkout from "./Checkout";
 
 const BASE_URL = "http://localhost:3000";
 
+// Cart component for the shopping cart
 const Cart = () => {
   // Context and state variables
   const { user, cart, setCart, fetchUserCart, updateUserCart } =
     useContext(UserContext);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [totalPrice, setTotalPrice] = useState(0);
   const [products, setProducts] = useState([]);
-  const [productsLoading, setProductsLoading] = useState(true); // New state variable for tracking the loading status of products
+  const [error, setError] = useState(null);
+  const [productsLoading, setProductsLoading] = useState(true);
 
-  // Fetch products data
+  // Fetch products data and cart items from server or local storage
   useEffect(() => {
     const fetchProducts = async () => {
+      setProductsLoading(true);
       try {
         const response = await fetch(`${BASE_URL}/api/products`);
         const data = await response.json();
         setProducts(data);
-        setProductsLoading(false); // Set loading to false here
       } catch (error) {
         console.error(`Error fetching products: ${error}`);
+        setError(`Error fetching products: ${error.toString()}`);
+      } finally {
+        setProductsLoading(false);
       }
     };
-    fetchProducts();
-  }, []);
 
-  // Fetch cart items from server or local storage
-  useEffect(() => {
-    const user_id = user && user.id ? Number(user.id) : "guest";
     const fetchCart = async () => {
+      const user_id = user && user.id ? Number(user.id) : "guest";
       try {
-        setLoading(true);
         let cartItems = [];
         if (!user || !user.id) {
           const savedCart = localStorage.getItem("guestCart");
@@ -48,26 +47,15 @@ const Cart = () => {
         setCart(cartItems);
         console.log("Cart items fetched:", cartItems);
       } catch (error) {
-        setError(error.message);
         console.error("Error fetching cart:", error);
+        setError(`Error fetching cart: ${error.toString()}`);
       } finally {
         setLoading(false);
       }
     };
+
+    fetchProducts();
     fetchCart();
-  }, [user, setCart]);
-
-  // Load cart from local storage
-  const loadLocalCart = () => {
-    const savedCart = localStorage.getItem("guestCart");
-    setCart(
-      savedCart && savedCart !== "undefined" ? JSON.parse(savedCart) : []
-    );
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    loadLocalCart();
   }, []);
 
   // Save cart to local storage
@@ -80,12 +68,16 @@ const Cart = () => {
 
   // Calculate total price
   useEffect(() => {
+    if (!Array.isArray(cart)) {
+      console.error("cart is not an array:", cart);
+      return;
+    }
+
     const total = cart
       ? cart.reduce((sum, item) => sum + (item.price || 0) * item.quantity, 0)
       : 0;
     setTotalPrice(total.toFixed(2));
   }, [cart]);
-
   // After defining the changeQuantity function
   useEffect(() => {
     if (!user || !user.id) {
@@ -94,11 +86,12 @@ const Cart = () => {
         setCart(JSON.parse(guestCart));
       }
     }
-  }, [user]);
+  }, []);
 
   const changeQuantity = (id, quantity) => {
     console.log(`Changing quantity for id ${id} to ${quantity}`);
-    const updatedQuantity = Math.max(0, parseInt(quantity));
+    console.log(`Current cart: ${JSON.stringify(cart)}`);
+    const updatedQuantity = Math.max(1, parseInt(quantity));
     if (isNaN(updatedQuantity)) {
       console.error("Invalid quantity:", quantity);
       return;
@@ -111,7 +104,7 @@ const Cart = () => {
       let updatedCart = prevCart;
       const existingItem = updatedCart.find((p) => p.product_id === id);
       if (existingItem) {
-        // Update the quantity of the existing item
+        // Set the quantity of the existing item to updatedQuantity
         updatedCart = updatedCart.map((p) =>
           p.product_id === id ? { ...p, quantity: updatedQuantity } : p
         );
@@ -122,16 +115,13 @@ const Cart = () => {
           { product_id: id, quantity: updatedQuantity },
         ];
       }
+      console.log(`Updated cart: ${JSON.stringify(updatedCart)}`);
       if (user && user.id) {
         // Call updateUserCart with the entire cart and handle the response
         console.log(`Updating cart in DB for user with id ${user.id}`);
-        updateUserCart(user.id, updatedCart)
-          .then((response) => {
-            console.log("Cart updated in DB:", response);
-          })
-          .catch((error) => {
-            console.error("Error updating cart in DB:", error);
-          });
+        updateUserCart(user.id, updatedCart).then((response) => {
+          console.log("Cart updated in DB:", response);
+        });
       } else {
         localStorage.setItem("guestCart", JSON.stringify(updatedCart));
         console.log("Guest cart updated:", updatedCart);
@@ -207,6 +197,9 @@ const Cart = () => {
         cart.map((item, index) => {
           const productId = user && user.id ? item.product_id : item.id;
           const product = products.find((p) => p.id === productId);
+          console.log("Item:", item);
+          console.log("Product ID:", productId);
+          console.log("Product:", product);
           if (!product) {
             return <p>Loading product details...</p>;
           }

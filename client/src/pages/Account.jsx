@@ -3,7 +3,9 @@ import { UserContext } from "./UserProvider";
 
 const BASE_URL = "http://localhost:3000";
 
+// This is the main Account component
 const Account = () => {
+  // State variables for user, loading status, error, user details, product details, and success message
   const { user, setCurrentUser } = useContext(UserContext);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);

@@ -8,6 +8,7 @@ const stripePromise = loadStripe(
   "pk_test_51P5GzSGGPEXzDHsTUrABOj0pPjuZGRh1yP190aZolbnq3dGnX9NDhfCIFRXDMn73rIw7x8MMZmrvyAyG2eU1F1q300w5eVUC2v"
 );
 
+// Checkout component for the checkout form
 const Checkout = () => {
   let card;
 
@@ -15,7 +16,8 @@ const Checkout = () => {
     const setupStripe = async () => {
       const stripe = await stripePromise;
       const elements = stripe.elements();
-      const card = elements.create("card", {
+      // Create a card element
+      card = elements.create("card", {
         style: {
           base: {
             color: "#32325d",
@@ -32,6 +34,7 @@ const Checkout = () => {
           },
         },
       });
+      // Mount the card element to the DOM
       card.mount("#card-element");
     };
 
@@ -59,6 +62,7 @@ const Checkout = () => {
           token: token.id,
         }
       );
+      console.log("Session data:", session);
       // Handle the session data...
     } catch (error) {
       console.error("Error in POST /create-checkout-session:", error);
@@ -66,6 +70,7 @@ const Checkout = () => {
     }
   };
 
+  // Render the checkout form
   return (
     <form onSubmit={handleSubmit} className="checkout-form">
       <label>

@@ -27,7 +27,7 @@ const Admin = () => {
         return response.json();
       })
       .then((data) => {
-        console.log("Products fetched:", data);
+        console.log("Products fetched:", data); // Log the fetched products
         setProducts(data);
       })
       .catch((error) => console.error("Error fetching products:", error));
@@ -43,14 +43,14 @@ const Admin = () => {
         return response.json();
       })
       .then((data) => {
-        console.log("Users fetched:", data);
+        console.log("Users fetched:", data); // Log the fetched users
         setUsers(data);
       })
       .catch((error) => console.error("Error fetching users:", error));
   };
 
   const addProduct = (product) => {
-    console.log("Adding product:", product);
+    console.log("Adding product:", product); // Log the product to be added
     // Add product to the server
     fetch("/api/admin/products", {
       method: "POST",
@@ -66,14 +66,14 @@ const Admin = () => {
         return response.json();
       })
       .then((newProduct) => {
-        console.log("Product added:", newProduct);
+        console.log("Product added:", newProduct); // Log the added product
         setProducts((oldProducts) => [...oldProducts, newProduct]);
       })
       .catch((error) => console.error("Error adding product:", error));
   };
 
   const editProduct = (product) => {
-    console.log("Editing product:", product);
+    console.log("Editing product:", product); // Log the product to be edited
     // Edit product on the server
     fetch(`${BASE_URL}/api/admin/products/${product.id}`, {
       method: "PUT",
@@ -89,7 +89,7 @@ const Admin = () => {
         return response.json();
       })
       .then((updatedProduct) => {
-        console.log("Product updated:", updatedProduct);
+        console.log("Product updated:", updatedProduct); // Log the updated product
         setProducts((oldProducts) =>
           oldProducts.map((p) =>
             p.id === updatedProduct.id ? updatedProduct : p
@@ -100,7 +100,7 @@ const Admin = () => {
   };
 
   const deleteProduct = (productId) => {
-    console.log("Deleting product:", productId);
+    console.log("Deleting product:", productId); // Log the id of the product to be deleted
     // Delete product from the server
     fetch(`${BASE_URL}/api/admin/products/${productId}`, {
       method: "DELETE",
@@ -112,7 +112,7 @@ const Admin = () => {
         return response.json();
       })
       .then(() => {
-        console.log("Product deleted:", productId);
+        console.log("Product deleted:", productId); // Log the id of the deleted product
         setProducts((oldProducts) =>
           oldProducts.filter((p) => p.id !== productId)
         );

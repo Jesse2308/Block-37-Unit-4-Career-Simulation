@@ -2,13 +2,14 @@ import { useState, useEffect } from "react";
 const BASE_URL = "http://localhost:3000";
 
 const AdminAccount = () => {
+  // State variables for products, users, and new product details
   const [products, setProducts] = useState([]);
   const [users, setUsers] = useState([]);
   const [newProductName, setNewProductName] = useState("");
   const [newProductPrice, setNewProductPrice] = useState("");
 
+  // Fetch products from the API
   const fetchProducts = async () => {
-    // Fetch products from your API and update the products state
     try {
       const response = await fetch(`${BASE_URL}/api/products`);
       if (!response.ok) {
@@ -16,11 +17,13 @@ const AdminAccount = () => {
       }
       const data = await response.json();
       setProducts(data);
+      console.log("Fetched products:", data); // Log the fetched products
     } catch (error) {
-      console.error("Error:", error);
+      console.error("Error fetching products:", error);
     }
   };
 
+  // Fetch users from the API
   const fetchUsersFromServer = async () => {
     try {
       const token = localStorage.getItem("token");
@@ -31,7 +34,7 @@ const AdminAccount = () => {
         },
       });
 
-      console.log(response); // Log the response
+      console.log("Response from fetching users:", response); // Log the response
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -39,16 +42,19 @@ const AdminAccount = () => {
 
       const data = await response.json();
       setUsers(data);
+      console.log("Fetched users:", data); // Log the fetched users
     } catch (error) {
-      console.error("Error:", error);
+      console.error("Error fetching users:", error);
     }
   };
 
+  // Fetch products and users when the component mounts
   useEffect(() => {
     fetchProducts();
     fetchUsersFromServer();
   }, []);
 
+  // Add a new product
   const handleAddProduct = async (newProduct) => {
     try {
       const response = await fetch(`${BASE_URL}/api/admin/products`, {
@@ -63,11 +69,13 @@ const AdminAccount = () => {
       }
       const data = await response.json();
       setProducts((prevProducts) => [...prevProducts, data]);
+      console.log("Added product:", data); // Log the added product
     } catch (error) {
-      console.error("Error:", error);
+      console.error("Error adding product:", error);
     }
   };
 
+  // Delete a product
   const handleDeleteProduct = async (productId) => {
     try {
       const response = await fetch(
@@ -82,10 +90,13 @@ const AdminAccount = () => {
       setProducts((prevProducts) =>
         prevProducts.filter((product) => product.id !== productId)
       );
+      console.log("Deleted product with id:", productId); // Log the id of the deleted product
     } catch (error) {
-      console.error("Error:", error);
+      console.error("Error deleting product:", error);
     }
   };
+
+  // Update a product's name
   const handleUpdateProductName = async (productId, newName) => {
     try {
       const response = await fetch(
@@ -107,11 +118,13 @@ const AdminAccount = () => {
           product.id === productId ? data : product
         )
       );
+      console.log("Updated product name:", data); // Log the product with the updated name
     } catch (error) {
-      console.error("Error:", error);
+      console.error("Error updating product name:", error);
     }
   };
 
+  // Update a product's price
   const handleUpdateProductPrice = async (productId, newPrice) => {
     try {
       const response = await fetch(
@@ -133,11 +146,13 @@ const AdminAccount = () => {
           product.id === productId ? data : product
         )
       );
+      console.log("Updated product price:", data); // Log the product with the updated price
     } catch (error) {
-      console.error("Error:", error);
+      console.error("Error updating product price:", error);
     }
   };
 
+  // Render the component
   return (
     <div>
       <h1>Welcome, Admin!</h1>

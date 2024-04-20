@@ -5,7 +5,9 @@ import { useContext } from "react";
 import { UserContext } from "./UserProvider";
 const BASE_URL = "http://localhost:3000";
 
+// Login component for user login
 const Login = () => {
+  // useContext hook to get the user data and functions from the UserContext
   const {
     user,
     setCurrentUser,
@@ -18,14 +20,16 @@ const Login = () => {
     fetchUserCart,
     updateUserCart,
   } = useContext(UserContext);
+  // State variables for form inputs and loading/error states
   const [localEmail, setLocalEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  // useNavigate hook for redirecting users
   const navigate = useNavigate();
 
-  // When a user logs in
+  // Function to handle login
   const login = async (username, password) => {
     try {
       setIsLoading(true);
@@ -90,11 +94,13 @@ const Login = () => {
     }
   };
 
+  // Function to handle form submission
   const handleSubmit = (e) => {
     e.preventDefault();
     login(localEmail, password);
   };
 
+  // useEffect hook to handle redirection after login
   useEffect(() => {
     const token = localStorage.getItem("token");
     // If the token is present, set it in the state
@@ -107,6 +113,7 @@ const Login = () => {
     }
   }, [user]);
 
+  // useEffect hook to handle redirection after user data is updated
   useEffect(() => {
     if (user) {
       if (user.isadmin) {
@@ -117,6 +124,7 @@ const Login = () => {
     }
   }, [user]);
 
+  // Render the login form
   return (
     <div className="login">
       <h2 className="login-title">Login</h2>
