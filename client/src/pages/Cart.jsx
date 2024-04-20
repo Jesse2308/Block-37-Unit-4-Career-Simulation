@@ -74,10 +74,14 @@ const Cart = () => {
     }
 
     const total = cart
-      ? cart.reduce((sum, item) => sum + (item.price || 0) * item.quantity, 0)
+      ? cart.reduce((sum, item) => {
+          const product = products.find((p) => p.id === item.id);
+          return sum + (product ? product.price * item.quantity : 0);
+        }, 0)
       : 0;
     setTotalPrice(total.toFixed(2));
-  }, [cart]);
+  }, [cart, products]);
+
   // After defining the changeQuantity function
   useEffect(() => {
     if (!user || !user.id) {
@@ -102,18 +106,15 @@ const Cart = () => {
     }
     setCart((prevCart) => {
       let updatedCart = prevCart;
-      const existingItem = updatedCart.find((p) => p.product_id === id);
+      const existingItem = updatedCart.find((p) => p.id === id);
       if (existingItem) {
         // Set the quantity of the existing item to updatedQuantity
         updatedCart = updatedCart.map((p) =>
-          p.product_id === id ? { ...p, quantity: updatedQuantity } : p
+          p.id === id ? { ...p, quantity: updatedQuantity } : p
         );
       } else {
         // Add the new item to the cart
-        updatedCart = [
-          ...updatedCart,
-          { product_id: id, quantity: updatedQuantity },
-        ];
+        updatedCart = [...updatedCart, { id: id, quantity: updatedQuantity }];
       }
       console.log(`Updated cart: ${JSON.stringify(updatedCart)}`);
       if (user && user.id) {

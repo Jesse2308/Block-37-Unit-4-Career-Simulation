@@ -24,7 +24,7 @@ const ProductDetail = () => {
 
   // Function to add a product to the cart
   const addToCart = async (productDetails, quantity = 1) => {
-    const item = { id: productDetails.id, quantity }; // Only include product_id and quantity
+    const item = { id: productDetails.id, quantity }; // Only include id and quantity
 
     if (user && user.id) {
       addToCartLoggedInUser(item);
@@ -41,20 +41,20 @@ const ProductDetail = () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          product_id: String(item.id), // Convert product_id to a string
+          product_id: String(item.product_id), // Convert product_id to a string
           quantity: String(item.quantity), // Convert quantity to a string
         }),
       });
 
+      // Log the HTTP status code
+      console.log("HTTP status code:", response.status);
+
       if (!response.ok)
         throw new Error(`HTTP error! status: ${response.status}`);
 
-      let updatedCart = await response.json();
-
-      // If updatedCart is an object, convert it to an array
-      if (!Array.isArray(updatedCart)) {
-        updatedCart = [updatedCart];
-      }
+      // Fetch the updated cart
+      const cartResponse = await fetch(`${BASE_URL}/api/cart/${user_id}`);
+      const updatedCart = await cartResponse.json();
 
       console.log("Logged in user's cart after adding item:", updatedCart);
 
@@ -75,7 +75,7 @@ const ProductDetail = () => {
     // Check if the item already exists in the guest cart
     const existingItemIndex = guestCart.findIndex((i) => i.id === item.id);
     if (existingItemIndex !== -1) {
-      // Update the quantity of the existing item
+      // Increment the quantity of the existing item
       guestCart[existingItemIndex].quantity += item.quantity;
     } else {
       // Add the new item to the guest cart
@@ -91,7 +91,6 @@ const ProductDetail = () => {
     localStorage.setItem("guestCart", JSON.stringify(guestCart));
     setCart(guestCart);
   };
-
   // If the product data is not yet loaded, display a loading message
   if (!product) return "Loading...";
 
