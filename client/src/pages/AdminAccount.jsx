@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import "./AdminAccount.css";
 const BASE_URL = "http://localhost:3000";
 
 const AdminAccount = () => {
@@ -7,6 +8,7 @@ const AdminAccount = () => {
   const [users, setUsers] = useState([]);
   const [newProductName, setNewProductName] = useState("");
   const [newProductPrice, setNewProductPrice] = useState("");
+  const [newProductImage, setNewProductImage] = useState(""); // New state variable for new product image
 
   // Fetch products from the API
   const fetchProducts = async () => {
@@ -22,7 +24,6 @@ const AdminAccount = () => {
       console.error("Error fetching products:", error);
     }
   };
-
   // Fetch users from the API
   const fetchUsersFromServer = async () => {
     try {
@@ -152,63 +153,152 @@ const AdminAccount = () => {
     }
   };
 
+  // Update a product's image
+  const handleUpdateProductImage = async (productId, newImage) => {
+    try {
+      const response = await fetch(
+        `${BASE_URL}/api/admin/products/${productId}/image`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ image: newImage }),
+        }
+      );
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      setProducts((prevProducts) =>
+        prevProducts.map((product) =>
+          product.id === productId ? data : product
+        )
+      );
+      console.log("Updated product image:", data); // Log the product with the updated image
+    } catch (error) {
+      console.error("Error updating product image:", error);
+    }
+  };
+
   // Render the component
   return (
-    <div>
-      <h1>Welcome, Admin!</h1>
+    <div className="admin-account">
+      <h1 className="admin-welcome">Welcome, Admin!</h1>
 
-      <h2>Products</h2>
-      {/* Display all products and provide forms for adding, editing, and deleting products */}
-      {products.map((product) => (
-        <div key={product.id}>
-          <p>Name: {product.name}</p>
-          <p>Price: {product.price}</p>
-          <form onSubmit={() => handleUpdateProductName(product.id)}>
-            <input
-              type="text"
-              placeholder="New product name"
-              onChange={(e) => setNewProductName(e.target.value)}
+      <div className="products-container">
+        <h2 className="products-title">Products</h2>
+        {/* Display all products and provide forms for adding, editing, and deleting products */}
+        {products.map((product) => (
+          <div key={product.id} className="product">
+            <img
+              src={product.image}
+              alt={product.name}
+              className="product-image"
             />
-            <button type="submit">Update Name</button>
-          </form>
-          <form onSubmit={() => handleUpdateProductPrice(product.id)}>
-            <input
-              type="number"
-              placeholder="New product price"
-              onChange={(e) => setNewProductPrice(e.target.value)}
-            />
-            <button type="submit">Update Price</button>
-          </form>
-          <button onClick={() => handleDeleteProduct(product.id)}>
-            Delete
+            <p>Name: {product.name}</p>
+            <p>Price: {product.price}</p>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleUpdateProductName(product.id, newProductName);
+              }}
+              className="update-name-form"
+            >
+              <input
+                type="text"
+                placeholder="New product name"
+                onChange={(e) => setNewProductName(e.target.value)}
+                className="update-name-input"
+              />
+              <button type="submit" className="update-name-button">
+                Update Name
+              </button>
+            </form>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleUpdateProductPrice(product.id, newProductPrice);
+              }}
+              className="update-price-form"
+            >
+              <input
+                type="number"
+                placeholder="New product price"
+                onChange={(e) => setNewProductPrice(e.target.value)}
+                className="update-price-input"
+              />
+              <button type="submit" className="update-price-button">
+                Update Price
+              </button>
+            </form>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleUpdateProductImage(product.id, newProductImage);
+              }}
+              className="update-image-form"
+            >
+              <input
+                type="text"
+                placeholder="New product image URL"
+                onChange={(e) => setNewProductImage(e.target.value)}
+                className="update-image-input"
+              />
+              <button type="submit" className="update-image-button">
+                Update Image
+              </button>
+            </form>
+            <button
+              onClick={() => handleDeleteProduct(product.id)}
+              className="delete-button"
+            >
+              Delete
+            </button>
+          </div>
+        ))}
+      </div>
+
+      <div className="add-product-container">
+        <h2 className="add-product-title">Add Product</h2>
+        <form onSubmit={handleAddProduct} className="add-product-form">
+          <input
+            type="text"
+            placeholder="Product name"
+            value={newProductName}
+            onChange={(e) => setNewProductName(e.target.value)}
+            className="add-product-name-input"
+          />
+          <input
+            type="number"
+            placeholder="Product price"
+            value={newProductPrice}
+            onChange={(e) => setNewProductPrice(e.target.value)}
+            className="add-product-price-input"
+          />
+          <input
+            type="text"
+            placeholder="Product image URL"
+            value={newProductImage}
+            onChange={(e) => setNewProductImage(e.target.value)}
+            className="add-product-image-input"
+          />
+          <button type="submit" className="add-product-button">
+            Add Product
           </button>
-        </div>
-      ))}
-      <h3>Add Product</h3>
-      <form onSubmit={handleAddProduct}>
-        <input
-          type="text"
-          placeholder="Product name"
-          value={newProductName}
-          onChange={(e) => setNewProductName(e.target.value)}
-        />
-        <input
-          type="number"
-          placeholder="Product price"
-          value={newProductPrice}
-          onChange={(e) => setNewProductPrice(e.target.value)}
-        />
-        <button type="submit">Add Product</button>
-      </form>
+        </form>
+      </div>
 
-      <h2>Users</h2>
-      {/* Display all users */}
-      {users.map((user, index) => (
-        <div key={index}>
-          <p>Email: {user.email}</p>
-          <p>Username: {user.username}</p>
-        </div>
-      ))}
+      <div className="users-container">
+        <h2 className="users-title">Users</h2>
+        {/* Display all users */}
+        {users.map((user, index) => (
+          <div key={index} className="user">
+            <p className="user-email">Email: {user.email}</p>
+            <p className="user-username">Username: {user.username}</p>
+          </div>
+        ))}
+      </div>
     </div>
   );
 };

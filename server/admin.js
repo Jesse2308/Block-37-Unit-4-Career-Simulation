@@ -1,14 +1,7 @@
 const express = require("express");
 const jwt = require("jsonwebtoken");
 const adminRoutes = express.Router();
-const {
-  client,
-  fetchProducts,
-  one,
-  none,
-  getUserById,
-  fetchAllUsers,
-} = require("./db");
+const { client, fetchProducts, getUserById, fetchAllUsers } = require("./db");
 
 // Middleware to check if user is admin
 async function isAdmin(req, res, next) {
@@ -164,6 +157,33 @@ adminRoutes.put("/products/:id/price", isAdmin, async (req, res) => {
     const updatedProduct = await one(
       "UPDATE products SET price = $1 WHERE id = $2 RETURNING *",
       [price, id]
+    );
+
+    // Send the updated product
+    res.json(updatedProduct);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+// Update product image in the database as an admin
+adminRoutes.put("/products/:id/image", isAdmin, async (req, res) => {
+  try {
+    // Extract product image from request body
+    const { image } = req.body;
+
+    // Extract product id from request parameters
+    const { id } = req.params;
+
+    // If image is not provided, send an error message
+    if (!image) {
+      throw new Error("Invalid image");
+    }
+
+    // SQL query to update the product's image in the database
+    const updatedProduct = await one(
+      "UPDATE products SET image = $1 WHERE id = $2 RETURNING *",
+      [image, id]
     );
 
     // Send the updated product

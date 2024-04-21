@@ -75,7 +75,8 @@ const Cart = () => {
 
     const total = cart
       ? cart.reduce((sum, item) => {
-          const product = products.find((p) => p.id === item.id);
+          const productId = user && user.id ? item.product_id : item.id;
+          const product = products.find((p) => p.id === productId);
           return sum + (product ? product.price * item.quantity : 0);
         }, 0)
       : 0;
@@ -106,11 +107,15 @@ const Cart = () => {
     }
     setCart((prevCart) => {
       let updatedCart = prevCart;
-      const existingItem = updatedCart.find((p) => p.id === id);
+      const existingItem = updatedCart.find(
+        (p) => (user && user.id ? p.product_id : p.id) === id
+      );
       if (existingItem) {
         // Set the quantity of the existing item to updatedQuantity
         updatedCart = updatedCart.map((p) =>
-          p.id === id ? { ...p, quantity: updatedQuantity } : p
+          (user && user.id ? p.product_id : p.id) === id
+            ? { ...p, quantity: updatedQuantity }
+            : p
         );
       } else {
         // Add the new item to the cart

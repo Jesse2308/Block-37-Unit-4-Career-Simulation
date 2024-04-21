@@ -78,7 +78,7 @@ export const UserProvider = ({ children }) => {
         const response = await fetch(`${BASE_URL}/api/cart/${cartId}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ updatedCart }),
+          body: JSON.stringify(updatedCart),
         });
 
         if (!response.ok) {
