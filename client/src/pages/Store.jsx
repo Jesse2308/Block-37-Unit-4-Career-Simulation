@@ -23,11 +23,34 @@ const Store = () => {
   const [products, setProducts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [sortOrder, setSortOrder] = useState("none");
   const navigate = useNavigate();
 
-  // Function to add a product to the cart
+  const handleSearchChange = (event) => {
+    setSearchTerm(event.target.value);
+  };
+
+  const handleSortChange = (event) => {
+    setSortOrder(event.target.value);
+  };
+
+  const filteredProducts = products
+    .filter((product) =>
+      product.name.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+    .sort((a, b) => {
+      if (sortOrder === "lowToHigh") {
+        return a.price - b.price;
+      } else if (sortOrder === "highToLow") {
+        return b.price - a.price;
+      } else {
+        return 0;
+      }
+    });
+
   const addToCart = async (productDetails, quantity = 1) => {
-    const item = { product_id: productDetails.id, quantity }; // Only include id and quantity
+    const item = { product_id: productDetails.id, quantity };
 
     if (user && user.id) {
       addToCartLoggedInUser(item);
@@ -36,7 +59,6 @@ const Store = () => {
     }
   };
 
-  // Function to add a product to the cart for a logged in user
   const addToCartLoggedInUser = async (item) => {
     const user_id = user.id;
     try {
@@ -44,8 +66,8 @@ const Store = () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          product_id: String(item.id), // Convert product_id to a string
-          quantity: String(item.quantity), // Convert quantity to a string
+          product_id: item.product_id,
+          quantity: item.quantity,
         }),
       });
 
@@ -58,44 +80,28 @@ const Store = () => {
 
       setCart(updatedCart);
       updateUserCart(user_id, updatedCart);
-      // Save the logged-in user's cart under a different key in local storage
       localStorage.setItem(`userCart_${user_id}`, JSON.stringify(updatedCart));
     } catch (error) {
       console.error(`Error adding item to cart: ${error}`);
     }
   };
 
-  // Function to add a product to the cart for a guest user
-  // Function to add a product to the cart for a guest user
   const addToCartGuestUser = (item) => {
-    // Add the new item to the state
     let guestCart = JSON.parse(localStorage.getItem("guestCart")) || [];
 
-    if (!Array.isArray(guestCart)) {
-      guestCart = [];
-    }
-
-    // Check if the item already exists in the guest cart
-    const existingItemIndex = guestCart.findIndex((i) => i.id === item.id);
+    const existingItemIndex = guestCart.findIndex(
+      (i) => i.product_id === item.product_id
+    );
     if (existingItemIndex !== -1) {
-      // Update the quantity of the existing item
       guestCart[existingItemIndex].quantity += item.quantity;
     } else {
-      // Add the new item to the guest cart
       guestCart.push(item);
-    }
-
-    if (guestCart.length > 2) {
-      alert(
-        "Please register for a buyer's account to add more items. If you want to sell items, register for a seller's account."
-      );
     }
 
     localStorage.setItem("guestCart", JSON.stringify(guestCart));
     setCart(guestCart);
   };
 
-  // Function to navigate to the cart page
   const viewCart = () => {
     navigate("/cart");
     if (JSON.parse(localStorage.getItem("cart")) && user) {
@@ -103,7 +109,6 @@ const Store = () => {
     }
   };
 
-  // Function to fetch all products from the server
   const fetchProducts = async () => {
     setIsLoading(true);
     setError(null);
@@ -119,7 +124,6 @@ const Store = () => {
     }
   };
 
-  // Function to handle the Buy Now operation
   const buyNow = (product) => {
     const updatedProduct = {
       ...product,
@@ -134,19 +138,27 @@ const Store = () => {
     alert("You have purchased this item: " + product.name);
   };
 
-  // useEffect hook to update the cart in local storage whenever the cart state changes
   useEffect(() => {
     localStorage.setItem("cart", JSON.stringify(cart));
-  }, []);
+  }, [cart]);
 
-  // useEffect hook to fetch all products when the component mounts
   useEffect(() => {
     fetchProducts();
   }, []);
 
-  // Render the products or loading/error messages
   return (
     <div className="centered-div">
+      <input
+        type="text"
+        placeholder="Search products"
+        value={searchTerm}
+        onChange={handleSearchChange}
+      />
+      <select value={sortOrder} onChange={handleSortChange}>
+        <option value="none">Sort by price</option>
+        <option value="lowToHigh">Low to High</option>
+        <option value="highToLow">High to Low</option>
+      </select>
       <button id="view-cart-button" onClick={viewCart}>
         View Cart
       </button>
@@ -156,7 +168,7 @@ const Store = () => {
         <p>{error}</p>
       ) : (
         <div className="item-container">
-          {products.map((product) => (
+          {filteredProducts.map((product) => (
             <div className="item" key={product.id}>
               <Product
                 product={product}

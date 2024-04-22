@@ -66,7 +66,6 @@ const Cart = () => {
     fetchProducts();
     fetchCart();
   }, []);
-
   useEffect(() => {
     if (cart) {
       localStorage.setItem("guestCart", JSON.stringify(cart));
@@ -81,7 +80,7 @@ const Cart = () => {
 
     const total = cart
       ? cart.reduce((sum, item) => {
-          const productId = item.id; // Changed from item.product_id
+          const productId = item.product_id;
           const product = products.find((p) => p.id === productId);
           return sum + (product ? product.price * item.quantity : 0);
         }, 0)
@@ -98,6 +97,21 @@ const Cart = () => {
     }
   }, []);
 
+  const removeFromCart = async (productId) => {
+    try {
+      console.log(`Trying to remove product with id ${productId} from cart`);
+
+      const userId = user?.id || "guest";
+      const deletedCartItem = await updateUserCart(userId, productId, "DELETE");
+
+      setCart((prevCart) =>
+        prevCart.filter((item) => item.id !== deletedCartItem.product_id)
+      );
+    } catch (error) {
+      console.error(`Error removing item from cart: ${error}`);
+    }
+  };
+
   const changeQuantity = async (id, quantity) => {
     console.log(`Changing quantity for id ${id} to ${quantity}`);
     console.log(`Current cart: ${JSON.stringify(cart)}`);
@@ -110,64 +124,19 @@ const Cart = () => {
       console.error("Invalid id:", id);
       return;
     }
-    if (user && user.id) {
-      try {
-        const updatedItem = await updateUserCart(user.id, id, {
-          quantity: updatedQuantity,
-        });
-        setCart((prevCart) =>
-          prevCart.map((item) => (item.id === id ? updatedItem : item))
-        );
-      } catch (error) {
-        console.error(`Error updating quantity: ${error}`);
-      }
-    } else {
-      setCart((prevCart) => {
-        const updatedCart = prevCart.map((item) =>
-          item.id === id ? { ...item, quantity: updatedQuantity } : item
-        );
-        localStorage.setItem("guestCart", JSON.stringify(updatedCart));
-        return updatedCart;
-      });
-    }
-  };
-
-  const removeFromCart = async (productId) => {
     try {
-      console.log(`Trying to remove product with id ${productId} from cart`);
+      const userId = user?.id || "guest";
+      const updatedItem = await updateUserCart(userId, id, "PUT", {
+        quantity: updatedQuantity,
+      });
 
-      if (user && user.id) {
-        try {
-          await updateUserCart(user.id, productId, { quantity: 0 });
-          setCart((prevCart) => {
-            const updatedCart = prevCart.filter((item) => {
-              const itemId = item.product_id;
-              return itemId !== productId;
-            });
-
-            console.log("Updated cart:", updatedCart);
-
-            return updatedCart;
-          });
-        } catch (error) {
-          console.error(`Error removing item from cart: ${error}`);
-        }
-      } else {
-        const savedCart = localStorage.getItem("guestCart");
-        if (savedCart) {
-          const parsedCart = JSON.parse(savedCart);
-          const updatedCart = parsedCart.filter(
-            (item) => item.id !== productId
-          );
-          localStorage.setItem("guestCart", JSON.stringify(updatedCart));
-          setCart(updatedCart);
-        }
-      }
+      setCart((prevCart) =>
+        prevCart.map((item) => (item.id === id ? updatedItem : item))
+      );
     } catch (error) {
-      console.error(`Error removing item from cart: ${error}`);
+      console.error(`Error updating quantity: ${error}`);
     }
   };
-
   if (loading) {
     return <p>Loading...</p>;
   }
@@ -185,11 +154,13 @@ const Cart = () => {
         <p className="cart-empty">Your cart is empty</p>
       ) : (
         cart.map((item, index) => {
-          const productId = item.id; // Changed from item.product_id
+          const productId = item.product_id;
           const product = products.find((p) => p.id === productId);
-          console.log("Item:", item);
-          console.log("Product ID:", productId);
-          console.log("Product:", product);
+
+          console.log("Cart item:", item);
+          console.log("Product ID from cart item:", productId);
+          console.log("Matched product from products list:", product);
+
           if (!product) {
             console.error(`Product not found for ID: ${productId}`);
             return <p>Product not found</p>;

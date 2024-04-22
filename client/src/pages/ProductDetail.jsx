@@ -1,30 +1,33 @@
 import { useState, useEffect, useContext } from "react";
-import { useParams, Link } from "react-router-dom";
-import "./ProductDetail.css";
+import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { UserContext } from "./UserProvider";
+
 const BASE_URL = "http://localhost:3000";
 
-// ProductDetail component to display detailed information about a product
-const ProductDetail = () => {
-  // useParams hook to get the product id from the URL
-  const { id } = useParams();
-  // State variable for the product data
-  const [product, setProduct] = useState(null);
-  // useContext hook to get the user and cart data from the UserContext
-  const { user, cart, setCart, updateUserCart } = useContext(UserContext);
+// Product component to display individual product details and Add to Cart and Buy Now buttons
+const Product = ({ product, addToCart, buyNow }) => (
+  <div key={product.id}>
+    <h3>{product.name}</h3>
+    <img src={product.image} alt={product.name} />
+    <p>{product.description}</p>
+    <p>${product.price}</p>
+    <button onClick={() => addToCart(product)}>Add to Cart</button>
+    <button onClick={() => buyNow(product)}>Buy Now</button>
+  </div>
+);
 
-  // useEffect hook to fetch the product data when the component mounts
-  useEffect(() => {
-    // Fetch the product data based on id
-    fetch(`/api/products/${id}`)
-      .then((response) => response.json())
-      .then((data) => setProduct(data))
-      .catch((error) => console.error("Error:", error));
-  }, [id]);
+// Store component to display all products and handle cart operations
+const Store = () => {
+  const { user, cart, setCart, updateUserCart } = useContext(UserContext);
+  const [products, setProducts] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const navigate = useNavigate();
 
   // Function to add a product to the cart
   const addToCart = async (productDetails, quantity = 1) => {
-    const item = { product_id: productDetails.id, quantity };
+    const item = { product_id: productDetails.id, quantity }; // Only include id and quantity
 
     if (user && user.id) {
       addToCartLoggedInUser(item);
@@ -34,6 +37,7 @@ const ProductDetail = () => {
   };
 
   // Function to add a product to the cart for a logged in user
+  // Function to add a product to the cart for a logged in user
   const addToCartLoggedInUser = async (item) => {
     const user_id = user.id;
     try {
@@ -41,8 +45,8 @@ const ProductDetail = () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          product_id: String(item.id), // Convert product_id to a string
-          quantity: String(item.quantity), // Convert quantity to a string
+          product_id: item.product_id, // Use product_id directly
+          quantity: item.quantity, // Use quantity directly
         }),
       });
 
@@ -61,13 +65,16 @@ const ProductDetail = () => {
       console.error(`Error adding item to cart: ${error}`);
     }
   };
+
   // Function to add a product to the cart for a guest user
   const addToCartGuestUser = (item) => {
-    // Add the new item to the state
+    // Get the guest cart from local storage
     let guestCart = JSON.parse(localStorage.getItem("guestCart")) || [];
 
     // Check if the item already exists in the guest cart
-    const existingItemIndex = guestCart.findIndex((i) => i.id === item.id);
+    const existingItemIndex = guestCart.findIndex(
+      (i) => i.product_id === item.product_id
+    );
     if (existingItemIndex !== -1) {
       // Increment the quantity of the existing item
       guestCart[existingItemIndex].quantity += item.quantity;
@@ -76,32 +83,92 @@ const ProductDetail = () => {
       guestCart.push(item);
     }
 
-    if (guestCart.length > 2) {
-      alert(
-        "Please register for a buyer's account to add more items. If you want to sell items, register for a seller's account."
-      );
-    }
-
+    // Save the updated guest cart in local storage
     localStorage.setItem("guestCart", JSON.stringify(guestCart));
+
+    // Update the cart state
     setCart(guestCart);
   };
-  // If the product data is not yet loaded, display a loading message
-  if (!product) return "Loading...";
 
-  // Render the product details
+  // Function to navigate to the cart page
+  const viewCart = () => {
+    navigate("/cart");
+    if (JSON.parse(localStorage.getItem("cart")) && user) {
+      localStorage.removeItem("cart");
+    }
+  };
+
+  // Function to fetch all products from the server
+  const fetchProducts = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const response = await fetch(`${BASE_URL}/api/products`);
+      if (!response.ok) throw new Error("Failed to fetch products");
+      const data = await response.json();
+      setProducts(data);
+    } catch (error) {
+      setError(error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Function to handle the Buy Now operation
+  const buyNow = (product) => {
+    const updatedProduct = {
+      ...product,
+      stock: product.stock - 1,
+      quantity: 1,
+    };
+    const updatedProducts = products.map((p) =>
+      p.id === product.id ? updatedProduct : p
+    );
+    setProducts(updatedProducts);
+    setCart((prevCart) => [...prevCart, updatedProduct]);
+    alert("You have purchased this item: " + product.name);
+  };
+
+  // useEffect hook to update the cart in local storage whenever the cart state changes
+  useEffect(() => {
+    localStorage.setItem("cart", JSON.stringify(cart));
+  }, []);
+
+  // useEffect hook to fetch all products when the component mounts
+  useEffect(() => {
+    fetchProducts();
+  }, []);
+
+  // Render the products or loading/error messages
   return (
-    <div className="product-detail">
-      <h2 className="product-name">{product.name}</h2>
-      <img src={product.image} alt={product.name} className="product-image" />
-      <p className="product-description">{product.description}</p>
-      <p className="product-price">${product.price}</p>
-      <p className="product-stock">Stock: {product.stock}</p>
-      <button onClick={() => addToCart(product, 1)}>Add to Cart</button>
-      <Link to="/cart" className="view-cart-button">
+    <div className="centered-div">
+      <button id="view-cart-button" onClick={viewCart}>
         View Cart
-      </Link>
+      </button>
+      {isLoading ? (
+        <p>Loading...</p>
+      ) : error ? (
+        <p>{error}</p>
+      ) : (
+        <div className="item-container">
+          {products.map((product) => (
+            <div className="item" key={product.id}>
+              <Product
+                product={product}
+                addToCart={() => addToCart(product)}
+                buyNow={buyNow}
+              />
+              <button className="details-button">
+                <Link to={`/products/${product.id}`} className="details-link">
+                  View Details
+                </Link>
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };
 
-export default ProductDetail;
+export default Store;

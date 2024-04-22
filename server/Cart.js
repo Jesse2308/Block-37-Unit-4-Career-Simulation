@@ -77,10 +77,6 @@ cartRoutes.delete(
       const user_id = Number(req.params.user_id);
       const product_id = Number(req.params.product_id);
 
-      console.log(
-        `Trying to delete item with product_id ${product_id} from user with user_id ${user_id}'s cart`
-      );
-
       if (isNaN(user_id) || isNaN(product_id)) {
         res
           .status(400)
@@ -92,8 +88,6 @@ cartRoutes.delete(
         user_id,
         product_id,
       ]);
-
-      console.log(`Result of DELETE_ITEM_FROM_CART query:`, deletedCartItem);
 
       if (deletedCartItem.rowCount === 0) {
         res
@@ -109,7 +103,6 @@ cartRoutes.delete(
   }
 );
 
-// route to update the cart for a specific user and product
 cartRoutes.put("/users/:user_id/cart/:product_id", async (req, res, next) => {
   try {
     const user_id = Number(req.params.user_id);
@@ -147,52 +140,6 @@ cartRoutes.put("/users/:user_id/cart/:product_id", async (req, res, next) => {
   }
 });
 
-// Route to update the cart for a specific user
-cartRoutes.put("/users/:user_id/cart", async (req, res, next) => {
-  try {
-    const user_id = Number(req.params.user_id);
-    const cartItem = req.body;
-
-    if (isNaN(user_id) || typeof cartItem !== "object") {
-      res.status(400).send({
-        success: false,
-        message: "user_id must be a number and cartItem must be an object",
-      });
-      return;
-    }
-
-    const product_id = Number(cartItem.product_id);
-    const quantity = Number(cartItem.quantity);
-
-    if (isNaN(product_id) || isNaN(quantity)) {
-      res.status(400).send({
-        success: false,
-        message: "product_id and quantity must be numbers",
-      });
-      return;
-    }
-
-    const updatedCartItem = await client.query(UPDATE_CART_ITEM, [
-      user_id,
-      product_id,
-      quantity,
-    ]);
-
-    if (updatedCartItem.rowCount === 0) {
-      res
-        .status(404)
-        .send({ success: false, message: "Item not found in cart" });
-      return;
-    }
-
-    res
-      .status(200)
-      .send({ success: true, message: "Cart updated successfully" });
-  } catch (err) {
-    next(err);
-  }
-});
-
 // Route to get the cart for a specific user
 cartRoutes.get("/users/:user_id/cart", async (req, res, next) => {
   try {
@@ -218,6 +165,7 @@ cartRoutes.get("/users/:user_id/cart", async (req, res, next) => {
     next(err);
   }
 });
+
 // Route to get the items for a specific cart
 cartRoutes.get("/cart_items/:cart_id", async (req, res, next) => {
   try {
