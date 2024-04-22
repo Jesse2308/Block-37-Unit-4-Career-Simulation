@@ -175,11 +175,12 @@ const Store = () => {
                 addToCart={() => addToCart(product)}
                 buyNow={buyNow}
               />
-              <button className="details-button">
-                <Link to={`/products/${product.id}`} className="details-link">
-                  View Details
-                </Link>
-              </button>
+              <Link
+                to={`/products/${product.id}`}
+                className="details-button details-link"
+              >
+                View Details
+              </Link>
             </div>
           ))}
         </div>

@@ -53,6 +53,27 @@ export const UserProvider = ({ children }) => {
       setCart([]);
     }
   }, [user]);
+  // Function to add a product to the cart
+  const addToCart = (product) => {
+    // Create a new cart item
+    const newItem = { product_id: product.id, quantity: 1 };
+
+    // Check if the product is already in the cart
+    const existingItem = cart.find((item) => item.product_id === product.id);
+
+    if (existingItem) {
+      // If the product is already in the cart, increase the quantity
+      existingItem.quantity += 1;
+    } else {
+      // If the product is not in the cart, add the new item
+      setCart((prevCart) => [...prevCart, newItem]);
+    }
+
+    // If the user is logged in, update the cart on the server
+    if (user && user.id) {
+      updateUserCart(user.id, cart);
+    }
+  };
 
   const updateUserCart = async (user_id, updatedCart) => {
     if (Array.isArray(user_id)) {
@@ -187,6 +208,7 @@ export const UserProvider = ({ children }) => {
         fetchUserData,
         fetchUserCart,
         updateUserCart,
+        addToCart,
       }}
     >
       {children}
