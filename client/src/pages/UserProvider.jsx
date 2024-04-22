@@ -4,26 +4,36 @@ const BASE_URL = "http://localhost:3000";
 // Create a context for user data
 export const UserContext = createContext();
 
-// Fetch and update cart functions
-const fetchUserCart = async (user_id) => {
-  // Check if user_id is provided
-  if (!user_id) {
-    console.error("Missing user_id");
-    return;
-  }
-  const response = await fetch(`${BASE_URL}/api/cart/${user_id}`);
-  if (!response.ok) {
-    throw new Error(`HTTP error! status: ${response.status}`);
-  }
-  let data = await response.json();
+const fetchUserCart = async (userId) => {
+  try {
+    const response = await fetch(`${BASE_URL}/api/users/${userId}/cart`);
 
-  // If the server responds with an object without a 'cart' property or an empty array, return an empty array
-  if (!Array.isArray(data)) {
-    data = [data];
-  }
+    if (!response.ok) {
+      // If the response status is 404, create a new cart for the user
+      if (response.status === 404) {
+        const newCartResponse = await fetch(
+          `${BASE_URL}/api/users/${userId}/cart`,
+          {
+            method: "POST",
+          }
+        );
 
-  console.log(`Fetched user cart: ${JSON.stringify(data)}`);
-  return data;
+        if (!newCartResponse.ok) {
+          throw new Error(`HTTP error! status: ${newCartResponse.status}`);
+        }
+
+        const newCart = await newCartResponse.json();
+        return newCart;
+      }
+
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const cart = await response.json();
+    return cart;
+  } catch (error) {
+    console.error(`Error fetching cart: ${error}`);
+  }
 };
 
 // This component provides user data to its children

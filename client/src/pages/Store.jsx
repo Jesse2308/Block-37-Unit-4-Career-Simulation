@@ -25,8 +25,9 @@ const Store = () => {
   const [error, setError] = useState(null);
   const navigate = useNavigate();
 
+  // Function to add a product to the cart
   const addToCart = async (productDetails, quantity = 1) => {
-    const item = { id: productDetails.id, quantity }; // Only include product_id and quantity
+    const item = { id: productDetails.id, quantity }; // Only include id and quantity
 
     if (user && user.id) {
       addToCartLoggedInUser(item);
@@ -34,10 +35,12 @@ const Store = () => {
       addToCartGuestUser(item);
     }
   };
+
+  // Function to add a product to the cart for a logged in user
   const addToCartLoggedInUser = async (item) => {
     const user_id = user.id;
     try {
-      const response = await fetch(`${BASE_URL}/api/cart/${user_id}`, {
+      const response = await fetch(`${BASE_URL}/api/users/${user_id}/cart`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -46,31 +49,10 @@ const Store = () => {
         }),
       });
 
-      if (!response.ok) {
-        console.error(`HTTP error! status: ${response.status}`);
-        return;
-      }
+      if (!response.ok)
+        throw new Error(`HTTP error! status: ${response.status}`);
 
-      const data = await response.text();
-      console.log("Server response:", data); // Log the server response
-
-      let updatedCart;
-      if (!data) {
-        // If the server doesn't return a response, manually update the cart
-        updatedCart = [...cart];
-        const existingItem = updatedCart.find((p) => p.product_id === item.id);
-        if (existingItem) {
-          existingItem.quantity += item.quantity;
-        } else {
-          updatedCart.push(item);
-        }
-      } else {
-        const responseData = JSON.parse(data);
-        // If the server response is an object, convert it to an array
-        updatedCart = Array.isArray(responseData)
-          ? responseData
-          : [responseData];
-      }
+      const updatedCart = await response.json();
 
       console.log("Logged in user's cart after adding item:", updatedCart);
 
@@ -84,9 +66,14 @@ const Store = () => {
   };
 
   // Function to add a product to the cart for a guest user
+  // Function to add a product to the cart for a guest user
   const addToCartGuestUser = (item) => {
     // Add the new item to the state
     let guestCart = JSON.parse(localStorage.getItem("guestCart")) || [];
+
+    if (!Array.isArray(guestCart)) {
+      guestCart = [];
+    }
 
     // Check if the item already exists in the guest cart
     const existingItemIndex = guestCart.findIndex((i) => i.id === item.id);

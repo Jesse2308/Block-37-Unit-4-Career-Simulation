@@ -1,7 +1,6 @@
-// Importing necessary hooks and components from React and react-router-dom
 import { useContext, useState, useEffect } from "react";
 import { Routes, Route, useNavigate } from "react-router-dom";
-// Importing your custom components
+
 import {
   NavBar,
   Store,
@@ -15,10 +14,9 @@ import {
   UserProvider,
   AdminAccount,
 } from "./pages";
-// Importing the UserContext from UserProvider
+
 import { UserContext } from "./pages/UserProvider";
 
-// The main App component
 function App() {
   // State for the cart, initially an empty array
   const [cart, setCart] = useState([]);
@@ -30,6 +28,7 @@ function App() {
 
   // The component returns the UserProvider wrapping all other components
   // and the Routes for the different pages of the app
+
   return (
     <UserProvider>
       <NavBar cart={cart} />

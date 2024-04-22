@@ -1,14 +1,12 @@
-import "./Cart.css";
-import { useEffect, useState } from "react";
-import { useContext } from "react";
+// Cart.jsx
+import { useState, useEffect, useContext } from "react";
 import { UserContext } from "./UserProvider";
 import Checkout from "./Checkout";
+import "./Cart.css";
 
 const BASE_URL = "http://localhost:3000";
 
-// Cart component for the shopping cart
 const Cart = () => {
-  // Context and state variables
   const { user, cart, setCart, fetchUserCart, updateUserCart } =
     useContext(UserContext);
   const [loading, setLoading] = useState(true);
@@ -17,7 +15,6 @@ const Cart = () => {
   const [error, setError] = useState(null);
   const [productsLoading, setProductsLoading] = useState(true);
 
-  // Fetch products data and cart items from server or local storage
   useEffect(() => {
     const fetchProducts = async () => {
       setProductsLoading(true);
@@ -58,15 +55,12 @@ const Cart = () => {
     fetchCart();
   }, []);
 
-  // Save cart to local storage
   useEffect(() => {
     if (cart) {
-      // Add check for cart before stringifying
       localStorage.setItem("guestCart", JSON.stringify(cart));
     }
   }, [cart]);
 
-  // Calculate total price
   useEffect(() => {
     if (!Array.isArray(cart)) {
       console.error("cart is not an array:", cart);
@@ -83,7 +77,6 @@ const Cart = () => {
     setTotalPrice(total.toFixed(2));
   }, [cart, products]);
 
-  // After defining the changeQuantity function
   useEffect(() => {
     if (!user || !user.id) {
       const guestCart = localStorage.getItem("guestCart");
@@ -93,7 +86,7 @@ const Cart = () => {
     }
   }, []);
 
-  const changeQuantity = (id, quantity) => {
+  const changeQuantity = async (id, quantity) => {
     console.log(`Changing quantity for id ${id} to ${quantity}`);
     console.log(`Current cart: ${JSON.stringify(cart)}`);
     const updatedQuantity = Math.max(1, parseInt(quantity));
@@ -105,70 +98,77 @@ const Cart = () => {
       console.error("Invalid id:", id);
       return;
     }
-    setCart((prevCart) => {
-      let updatedCart = prevCart;
-      const existingItem = updatedCart.find(
-        (p) => (user && user.id ? p.product_id : p.id) === id
-      );
-      if (existingItem) {
-        // Set the quantity of the existing item to updatedQuantity
-        updatedCart = updatedCart.map((p) =>
-          (user && user.id ? p.product_id : p.id) === id
-            ? { ...p, quantity: updatedQuantity }
-            : p
-        );
-      } else {
-        // Add the new item to the cart
-        updatedCart = [...updatedCart, { id: id, quantity: updatedQuantity }];
-      }
-      console.log(`Updated cart: ${JSON.stringify(updatedCart)}`);
-      if (user && user.id) {
-        // Call updateUserCart with the entire cart and handle the response
-        console.log(`Updating cart in DB for user with id ${user.id}`);
-        updateUserCart(user.id, updatedCart).then((response) => {
-          console.log("Cart updated in DB:", response);
-        });
-      } else {
-        localStorage.setItem("guestCart", JSON.stringify(updatedCart));
-        console.log("Guest cart updated:", updatedCart);
-      }
-      return updatedCart;
-    });
-  };
-  const removeFromCart = async (productId) => {
-    try {
-      console.log(`Trying to remove product with id ${productId} from cart`);
-
-      // Log the cart before removing the item
-      console.log("Cart before removing item:", cart);
-
-      // Remove item from local state
-      setCart((prevCart) => {
-        const updatedCart = prevCart.filter((item) => {
-          // Use item.product_id for logged in users and item.id for guest users
-          const itemId = user && user.id ? item.product_id : item.id;
-          return itemId !== productId;
-        });
-
-        // Log the updated cart
-        console.log("Updated cart:", updatedCart);
-
-        return updatedCart;
-      });
-
-      if (user && user.id) {
+    if (user && user.id) {
+      try {
         const response = await fetch(
-          `${BASE_URL}/api/cart/${user.id}/${productId}`,
+          `${BASE_URL}/api/users/${user.id}/cart/${id}`,
           {
-            method: "DELETE",
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ quantity: updatedQuantity }),
           }
         );
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
-        console.log(`Item with id ${productId} removed from cart`);
+        const updatedItem = await response.json();
+        setCart((prevCart) =>
+          prevCart.map((item) => (item.id === id ? updatedItem : item))
+        );
+      } catch (error) {
+        console.error(`Error updating quantity: ${error}`);
+      }
+    } else {
+      setCart((prevCart) =>
+        prevCart.map((item) =>
+          item.id === id ? { ...item, quantity: updatedQuantity } : item
+        )
+      );
+      localStorage.setItem("guestCart", JSON.stringify(cart));
+    }
+  };
+
+  const removeFromCart = async (productId) => {
+    try {
+      console.log(`Trying to remove product with id ${productId} from cart`);
+
+      if (user && user.id) {
+        const response = await fetch(
+          `${BASE_URL}/api/users/${user.id}/cart/${productId}`,
+          {
+            method: "DELETE",
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const text = await response.text();
+
+        try {
+          const data = JSON.parse(text);
+
+          if (data.success) {
+            console.log(`Item with id ${productId} removed from cart`);
+
+            setCart((prevCart) => {
+              const updatedCart = prevCart.filter((item) => {
+                const itemId = item.product_id;
+                return itemId !== productId;
+              });
+
+              console.log("Updated cart:", updatedCart);
+
+              return updatedCart;
+            });
+          } else {
+            console.error(`Server error: ${data.message}`);
+          }
+        } catch (error) {
+          console.error(`Error parsing server response: ${text}`);
+        }
       } else {
-        // Remove item from local storage
         const savedCart = JSON.parse(localStorage.getItem("guestCart"));
         if (savedCart) {
           const updatedCart = savedCart.filter((item) => item.id !== productId);
@@ -181,7 +181,6 @@ const Cart = () => {
     }
   };
 
-  // Loading and error handling
   if (loading) {
     return <p>Loading...</p>;
   }
@@ -190,7 +189,6 @@ const Cart = () => {
     return <p>Error: {error}</p>;
   }
 
-  // Render cart
   return (
     <div className="cart">
       <h2 className="cart-title">Your Cart</h2>
@@ -200,7 +198,7 @@ const Cart = () => {
         <p className="cart-empty">Your cart is empty</p>
       ) : (
         cart &&
-        cart.map((item, index) => {
+        cart.items.map((item, index) => {
           const productId = user && user.id ? item.product_id : item.id;
           const product = products.find((p) => p.id === productId);
           console.log("Item:", item);
@@ -214,7 +212,6 @@ const Cart = () => {
               key={`${item.cart_id || item.id}-${index}`}
               className="cart-item"
             >
-              {" "}
               <img
                 src={product.image || "default-image.jpg"}
                 alt={product.name}
@@ -238,7 +235,6 @@ const Cart = () => {
               </p>
               <button
                 onClick={() => {
-                  // Check if the item is valid
                   if (
                     !product ||
                     !product.id ||

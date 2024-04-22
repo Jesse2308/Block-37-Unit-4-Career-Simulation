@@ -71,6 +71,14 @@ async function registerUser(req, res, next) {
       ]);
       const user = response.rows[0];
 
+      // After creating the user, also create a new cart for the user
+      const SQL_CART = `
+        INSERT INTO cart (user_id)
+        VALUES ($1)
+        RETURNING *;
+      `;
+      await client.query(SQL_CART, [user.id]);
+
       // Generate a token
       const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, {
         expiresIn: "1h",

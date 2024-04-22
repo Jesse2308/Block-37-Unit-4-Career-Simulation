@@ -37,27 +37,22 @@ const ProductDetail = () => {
   const addToCartLoggedInUser = async (item) => {
     const user_id = user.id;
     try {
-      const response = await fetch(`${BASE_URL}/api/cart/${user_id}`, {
+      const response = await fetch(`${BASE_URL}/api/users/${user_id}/cart`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          product_id: String(item.product_id), // Convert product_id to a string
+          product_id: String(item.id), // Convert product_id to a string
           quantity: String(item.quantity), // Convert quantity to a string
         }),
       });
-
-      // Log the HTTP status code
-      console.log("HTTP status code:", response.status);
-
+  
       if (!response.ok)
         throw new Error(`HTTP error! status: ${response.status}`);
-
-      // Fetch the updated cart
-      const cartResponse = await fetch(`${BASE_URL}/api/cart/${user_id}`);
-      const updatedCart = await cartResponse.json();
-
+  
+      const updatedCart = await response.json();
+  
       console.log("Logged in user's cart after adding item:", updatedCart);
-
+  
       setCart(updatedCart);
       updateUserCart(user_id, updatedCart);
       // Save the logged-in user's cart under a different key in local storage
@@ -66,7 +61,6 @@ const ProductDetail = () => {
       console.error(`Error adding item to cart: ${error}`);
     }
   };
-
   // Function to add a product to the cart for a guest user
   const addToCartGuestUser = (item) => {
     // Add the new item to the state
