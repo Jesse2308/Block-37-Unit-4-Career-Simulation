@@ -36,12 +36,28 @@ const Cart = () => {
         if (!user || !user.id) {
           const savedCart = localStorage.getItem("guestCart");
           cartItems = savedCart ? JSON.parse(savedCart) : [];
+          // Ensure that cart items for guest users have the same structure as for logged-in users
+          cartItems = cartItems.map((item) => ({
+            product_id: item.product_id || item.id,
+            quantity: item.quantity,
+          }));
         } else {
           console.log(`Fetching cart for user_id: ${userId}`);
-          const userCart = await fetchUserCart(userId);
+          const response = await fetchUserCart(userId);
+
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+
+          const userCart = await response.json();
+
+          if (!userCart || !userCart.items) {
+            throw new Error("Cart not found");
+          }
+
           // Flatten the cart items for logged-in users
           cartItems = userCart.items.map((item) => ({
-            id: item.product_id,
+            product_id: item.product_id,
             quantity: item.quantity,
           }));
         }
@@ -66,6 +82,7 @@ const Cart = () => {
     fetchProducts();
     fetchCart();
   }, []);
+
   useEffect(() => {
     if (cart) {
       localStorage.setItem("guestCart", JSON.stringify(cart));
@@ -104,8 +121,17 @@ const Cart = () => {
       const userId = user?.id || "guest";
       const deletedCartItem = await updateUserCart(userId, productId, "DELETE");
 
+      if (!deletedCartItem) {
+        console.error(
+          `Product with id ${productId} does not exist in the cart`
+        );
+        return;
+      }
+
       setCart((prevCart) =>
-        prevCart.filter((item) => item.id !== deletedCartItem.product_id)
+        prevCart.filter(
+          (item) => item.product_id !== deletedCartItem.product_id
+        )
       );
     } catch (error) {
       console.error(`Error removing item from cart: ${error}`);
@@ -126,17 +152,20 @@ const Cart = () => {
     }
     try {
       const userId = user?.id || "guest";
-      const updatedItem = await updateUserCart(userId, id, "PUT", {
+      const updatedItem = await updateUserCart(userId, Number(id), "PUT", {
         quantity: updatedQuantity,
       });
 
       setCart((prevCart) =>
-        prevCart.map((item) => (item.id === id ? updatedItem : item))
+        prevCart.map((item) =>
+          item.product_id === Number(id) ? updatedItem : item
+        )
       );
     } catch (error) {
       console.error(`Error updating quantity: ${error}`);
     }
   };
+
   if (loading) {
     return <p>Loading...</p>;
   }

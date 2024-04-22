@@ -74,49 +74,66 @@ export const UserProvider = ({ children }) => {
       updateUserCart(user.id, cart);
     }
   };
-
-  const updateUserCart = async (user_id, updatedCart) => {
+  const updateUserCart = async (
+    user_id,
+    product_id,
+    method = "PUT",
+    body = null
+  ) => {
     if (Array.isArray(user_id)) {
       console.log("Invalid user id:", user_id);
       return;
     }
 
     console.log("Updating cart for user with id:", user_id);
-    console.log("Updated cart:", updatedCart);
+    console.log("Updated cart:", body);
 
-    // Get the cart id for the user
-    try {
-      const cartResponse = await fetch(`${BASE_URL}/api/users/${user_id}/cart`);
-      const cartData = await cartResponse.json();
-      if (cartData.cart) {
-        const cartId = cartData.cart.id;
-        console.log(`Cart ID for user with id ${user_id}: ${cartId}`);
-
-        try {
-          const response = await fetch(`${BASE_URL}/api/cart/${cartId}`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(updatedCart),
-          });
-
-          if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-          }
-
-          const data = await response.json();
-          console.log(`Updated user cart: ${JSON.stringify(data)}`);
-          return data;
-        } catch (error) {
-          console.error("Error:", error);
+    if (user_id === "guest") {
+      // Handle cart operations for guest users
+      let guestCart = localStorage.getItem("guestCart");
+      guestCart = guestCart ? JSON.parse(guestCart) : [];
+      if (method === "DELETE") {
+        guestCart = guestCart.filter((item) => item.product_id !== product_id);
+      } else if (method === "PUT") {
+        const itemIndex = guestCart.findIndex(
+          (item) => item.product_id === product_id
+        );
+        if (itemIndex !== -1) {
+          guestCart[itemIndex].quantity = body.quantity;
+        } else {
+          guestCart.push({ product_id: product_id, quantity: body.quantity });
         }
       }
-    } catch (error) {
-      console.error(
-        `Error fetching cart for user with id ${user_id}: ${error}`
-      );
+      localStorage.setItem("guestCart", JSON.stringify(guestCart));
+      return guestCart;
+    } else {
+      // Handle cart operations for logged-in users
+      try {
+        const response = await fetch(
+          `${BASE_URL}/api/users/${user_id}/cart/${product_id}`,
+          {
+            method: method,
+            headers: { "Content-Type": "application/json" },
+            body: body ? JSON.stringify(body) : null,
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        let data;
+        if (method !== "DELETE") {
+          data = await response.json();
+          console.log(`Updated user cart: ${JSON.stringify(data)}`);
+        }
+
+        return data;
+      } catch (error) {
+        console.error("Error:", error);
+      }
     }
   };
-
   // Function to fetch user data
   const fetchUserData = async () => {
     const tokenFromLocalStorage = localStorage.getItem("token");

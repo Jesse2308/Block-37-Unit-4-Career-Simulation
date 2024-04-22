@@ -20,6 +20,7 @@ const Account = () => {
   const [productImage, setProductImage] = useState("");
   const [products, setProducts] = useState([]);
   const [successMessage, setSuccessMessage] = useState("");
+  const [editingProduct, setEditingProduct] = useState(null);
 
   // Fetch the user's details
   useEffect(() => {
@@ -150,6 +151,50 @@ const Account = () => {
         setError(error.message);
       });
   };
+  // Fetch the user's products
+  useEffect(() => {
+    if (!user) {
+      console.log("User not set, skipping fetch for products");
+      return;
+    }
+
+    console.log("Fetching products...");
+    const token = localStorage.getItem("token");
+
+    if (!token) {
+      console.log("No token found");
+      setError("No token found");
+      setIsLoading(false);
+      return;
+    }
+
+    const headers = {
+      Authorization: `Bearer ${token}`,
+    };
+
+    fetch(`${BASE_URL}/api/products/user/${user.id}`, { headers })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+      })
+      .then((data) => {
+        if (Array.isArray(data) && data.length > 0) {
+          console.log("Products fetched successfully");
+          setProducts(data);
+        } else {
+          console.log("No products found");
+          setProducts([]);
+        }
+        setIsLoading(false);
+      })
+      .catch((error) => {
+        console.log("Error fetching products:", error.message);
+        setError(error.message);
+        setIsLoading(false);
+      });
+  }, [user]);
 
   const handleAddProduct = async (event) => {
     console.log("Handling product addition");
@@ -178,7 +223,7 @@ const Account = () => {
       "Content-Type": "application/json",
     };
 
-    fetch(`${BASE_URL}api/products`, {
+    fetch(`${BASE_URL}/api/products`, {
       method: "POST",
       headers,
       body: JSON.stringify({
@@ -188,6 +233,7 @@ const Account = () => {
         details: productDetails,
         quantity: productQuantity,
         image: productImage,
+        sellerId: user.id,
       }),
     })
       .then((response) => {
@@ -204,8 +250,48 @@ const Account = () => {
         setProductQuantity("");
         setProductCategory("");
         setProductImage("");
+
+        // Fetch the products again
+        fetch(`${BASE_URL}/api/products/user/${user.id}`, { headers })
+          .then((response) => response.json())
+          .then((data) => setProducts(data))
+          .catch((error) => setError(error.message));
       })
       .catch((error) => setError(error.message));
+  };
+
+  const updateProduct = async (productId, updatedProduct) => {
+    console.log("Updating product with ID:", productId);
+    const token = localStorage.getItem("token");
+
+    if (!token) {
+      setError("No token found");
+      return;
+    }
+    const headers = {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    };
+
+    const response = await fetch(`${BASE_URL}/api/products/${productId}`, {
+      method: "PUT",
+      headers,
+      body: JSON.stringify({ ...updatedProduct, sellerId: user.id }),
+    });
+
+    if (response.ok) {
+      // Update the product in the state
+      const updatedProduct = await response.json();
+      setProducts(
+        products.map((product) =>
+          product.id === productId ? updatedProduct : product
+        )
+      );
+      setSuccessMessage("Product successfully updated"); // Add this line
+    } else {
+      const errorData = await response.json();
+      setError(errorData.message);
+    }
   };
 
   const deleteProduct = async (productId) => {

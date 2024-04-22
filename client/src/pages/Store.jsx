@@ -79,7 +79,7 @@ const Store = () => {
       console.log("Logged in user's cart after adding item:", updatedCart);
 
       setCart(updatedCart);
-      updateUserCart(user_id, updatedCart);
+      updateUserCart(user_id, item.product_id, "DELETE");
       localStorage.setItem(`userCart_${user_id}`, JSON.stringify(updatedCart));
     } catch (error) {
       console.error(`Error adding item to cart: ${error}`);

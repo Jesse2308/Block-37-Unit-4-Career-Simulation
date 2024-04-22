@@ -23,21 +23,64 @@ productRoutes.get("/products", async (req, res, next) => {
 productRoutes.post("/products", async (req, res, next) => {
   try {
     // Extract product details from request body
-    const { name, price } = req.body;
+    const { name, category, price, details, quantity, image, sellerId } =
+      req.body;
 
-    // If name or price is not provided, send an error message
-    if (!name || !price) {
-      throw new Error("Invalid name or price");
+    // If any field is not provided, send an error message
+    if (
+      !name ||
+      !category ||
+      !price ||
+      !details ||
+      !quantity ||
+      !image ||
+      !sellerId
+    ) {
+      throw new Error("All fields are required");
     }
 
     // SQL query to insert the new product into the database
     const newProduct = await client.query(
-      "INSERT INTO products(name, price) VALUES($1, $2) RETURNING *",
-      [name, price]
+      "INSERT INTO products(name, category, price, details, quantity, image, seller_id) VALUES($1, $2, $3, $4, $5, $6, $7) RETURNING *",
+      [name, category, price, details, quantity, image, sellerId]
     );
 
     // Send the new product
     res.status(201).json(newProduct.rows[0]);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Route to update a product
+productRoutes.put("/products/:productId", async (req, res, next) => {
+  try {
+    // Extract product details from request body
+    const { name, category, price, details, quantity, image, sellerId } =
+      req.body;
+    const { productId } = req.params;
+
+    // If any field is not provided, send an error message
+    if (
+      !name ||
+      !category ||
+      !price ||
+      !details ||
+      !quantity ||
+      !image ||
+      !sellerId
+    ) {
+      throw new Error("All fields are required");
+    }
+
+    // SQL query to update the product in the database
+    const updatedProduct = await client.query(
+      "UPDATE products SET name = $1, category = $2, price = $3, details = $4, quantity = $5, image = $6, seller_id = $7 WHERE id = $8 RETURNING *",
+      [name, category, price, details, quantity, image, sellerId, productId]
+    );
+
+    // Send the updated product
+    res.json(updatedProduct.rows[0]);
   } catch (err) {
     next(err);
   }
