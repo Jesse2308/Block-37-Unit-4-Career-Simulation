@@ -24,7 +24,7 @@ const ProductDetail = () => {
 
   // Function to add a product to the cart
   const addToCart = async (productDetails, quantity = 1) => {
-    const item = { id: productDetails.id, quantity }; // Only include id and quantity
+    const item = { product_id: productDetails.id, quantity };
 
     if (user && user.id) {
       addToCartLoggedInUser(item);
@@ -45,14 +45,14 @@ const ProductDetail = () => {
           quantity: String(item.quantity), // Convert quantity to a string
         }),
       });
-  
+
       if (!response.ok)
         throw new Error(`HTTP error! status: ${response.status}`);
-  
+
       const updatedCart = await response.json();
-  
+
       console.log("Logged in user's cart after adding item:", updatedCart);
-  
+
       setCart(updatedCart);
       updateUserCart(user_id, updatedCart);
       // Save the logged-in user's cart under a different key in local storage

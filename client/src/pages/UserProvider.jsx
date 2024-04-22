@@ -9,23 +9,6 @@ const fetchUserCart = async (userId) => {
     const response = await fetch(`${BASE_URL}/api/users/${userId}/cart`);
 
     if (!response.ok) {
-      // If the response status is 404, create a new cart for the user
-      if (response.status === 404) {
-        const newCartResponse = await fetch(
-          `${BASE_URL}/api/users/${userId}/cart`,
-          {
-            method: "POST",
-          }
-        );
-
-        if (!newCartResponse.ok) {
-          throw new Error(`HTTP error! status: ${newCartResponse.status}`);
-        }
-
-        const newCart = await newCartResponse.json();
-        return newCart;
-      }
-
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
@@ -48,7 +31,10 @@ export const UserProvider = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   // Cart state
-  const [cart, setCart] = useState(() => {
+  const [cart, setCart] = useState([]);
+
+  // Load cart from local storage when user data changes
+  useEffect(() => {
     let savedCart;
     if (user && user.id) {
       savedCart = localStorage.getItem(`userCart_${user.id}`);
@@ -60,13 +46,14 @@ export const UserProvider = ({ children }) => {
       const parsedCart = JSON.parse(savedCart);
       if (Array.isArray(parsedCart)) {
         console.log("Loaded cart from local storage:", parsedCart);
-        return parsedCart;
+        setCart(parsedCart);
       }
+    } else {
+      console.log("No cart found in local storage. Initializing empty cart.");
+      setCart([]);
     }
+  }, [user]);
 
-    console.log("No cart found in local storage. Initializing empty cart.");
-    return [];
-  });
   const updateUserCart = async (user_id, updatedCart) => {
     if (Array.isArray(user_id)) {
       console.log("Invalid user id:", user_id);

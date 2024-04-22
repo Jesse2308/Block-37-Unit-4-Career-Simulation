@@ -27,7 +27,7 @@ const Store = () => {
 
   // Function to add a product to the cart
   const addToCart = async (productDetails, quantity = 1) => {
-    const item = { id: productDetails.id, quantity }; // Only include id and quantity
+    const item = { product_id: productDetails.id, quantity }; // Only include id and quantity
 
     if (user && user.id) {
       addToCartLoggedInUser(item);

@@ -30,15 +30,28 @@ const Cart = () => {
     };
 
     const fetchCart = async () => {
-      const user_id = user && user.id ? Number(user.id) : "guest";
+      const userId = user && user.id ? Number(user.id) : "guest";
       try {
         let cartItems = [];
         if (!user || !user.id) {
           const savedCart = localStorage.getItem("guestCart");
           cartItems = savedCart ? JSON.parse(savedCart) : [];
         } else {
-          console.log(`Fetching cart for user_id: ${user_id}`);
-          cartItems = await fetchUserCart(user_id);
+          console.log(`Fetching cart for user_id: ${userId}`);
+          const userCart = await fetchUserCart(userId);
+          // Flatten the cart items for logged-in users
+          cartItems = userCart.items.map((item) => ({
+            id: item.product_id,
+            quantity: item.quantity,
+          }));
+        }
+        // Check if cartItems is an object and not an array
+        if (typeof cartItems === "object" && !Array.isArray(cartItems)) {
+          // Convert the object into an array containing the object
+          cartItems = [cartItems];
+        }
+        if (!Array.isArray(cartItems)) {
+          throw new Error(`Cart items is not an array: ${cartItems}`);
         }
         setCart(cartItems);
         console.log("Cart items fetched:", cartItems);
@@ -68,7 +81,7 @@ const Cart = () => {
 
     const total = cart
       ? cart.reduce((sum, item) => {
-          const productId = user && user.id ? item.product_id : item.id;
+          const productId = item.id; // Changed from item.product_id
           const product = products.find((p) => p.id === productId);
           return sum + (product ? product.price * item.quantity : 0);
         }, 0)
@@ -99,18 +112,9 @@ const Cart = () => {
     }
     if (user && user.id) {
       try {
-        const response = await fetch(
-          `${BASE_URL}/api/users/${user.id}/cart/${id}`,
-          {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ quantity: updatedQuantity }),
-          }
-        );
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const updatedItem = await response.json();
+        const updatedItem = await updateUserCart(user.id, id, {
+          quantity: updatedQuantity,
+        });
         setCart((prevCart) =>
           prevCart.map((item) => (item.id === id ? updatedItem : item))
         );
@@ -118,12 +122,13 @@ const Cart = () => {
         console.error(`Error updating quantity: ${error}`);
       }
     } else {
-      setCart((prevCart) =>
-        prevCart.map((item) =>
+      setCart((prevCart) => {
+        const updatedCart = prevCart.map((item) =>
           item.id === id ? { ...item, quantity: updatedQuantity } : item
-        )
-      );
-      localStorage.setItem("guestCart", JSON.stringify(cart));
+        );
+        localStorage.setItem("guestCart", JSON.stringify(updatedCart));
+        return updatedCart;
+      });
     }
   };
 
@@ -132,45 +137,28 @@ const Cart = () => {
       console.log(`Trying to remove product with id ${productId} from cart`);
 
       if (user && user.id) {
-        const response = await fetch(
-          `${BASE_URL}/api/users/${user.id}/cart/${productId}`,
-          {
-            method: "DELETE",
-          }
-        );
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const text = await response.text();
-
         try {
-          const data = JSON.parse(text);
-
-          if (data.success) {
-            console.log(`Item with id ${productId} removed from cart`);
-
-            setCart((prevCart) => {
-              const updatedCart = prevCart.filter((item) => {
-                const itemId = item.product_id;
-                return itemId !== productId;
-              });
-
-              console.log("Updated cart:", updatedCart);
-
-              return updatedCart;
+          await updateUserCart(user.id, productId, { quantity: 0 });
+          setCart((prevCart) => {
+            const updatedCart = prevCart.filter((item) => {
+              const itemId = item.product_id;
+              return itemId !== productId;
             });
-          } else {
-            console.error(`Server error: ${data.message}`);
-          }
+
+            console.log("Updated cart:", updatedCart);
+
+            return updatedCart;
+          });
         } catch (error) {
-          console.error(`Error parsing server response: ${text}`);
+          console.error(`Error removing item from cart: ${error}`);
         }
       } else {
-        const savedCart = JSON.parse(localStorage.getItem("guestCart"));
+        const savedCart = localStorage.getItem("guestCart");
         if (savedCart) {
-          const updatedCart = savedCart.filter((item) => item.id !== productId);
+          const parsedCart = JSON.parse(savedCart);
+          const updatedCart = parsedCart.filter(
+            (item) => item.id !== productId
+          );
           localStorage.setItem("guestCart", JSON.stringify(updatedCart));
           setCart(updatedCart);
         }
@@ -193,17 +181,18 @@ const Cart = () => {
       <h2 className="cart-title">Your Cart</h2>
       {productsLoading ? (
         <p>Loading products...</p>
-      ) : !cart || !cart.items || cart.items.length === 0 ? (
+      ) : !cart || cart.length === 0 ? (
         <p className="cart-empty">Your cart is empty</p>
       ) : (
-        cart.items.map((item, index) => {
-          const productId = user && user.id ? item.product_id : item.id;
+        cart.map((item, index) => {
+          const productId = item.id; // Changed from item.product_id
           const product = products.find((p) => p.id === productId);
           console.log("Item:", item);
           console.log("Product ID:", productId);
           console.log("Product:", product);
           if (!product) {
-            return <p>Loading product details...</p>;
+            console.error(`Product not found for ID: ${productId}`);
+            return <p>Product not found</p>;
           }
           return (
             <div
