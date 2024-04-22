@@ -1,4 +1,3 @@
-// Cart.jsx
 import { useState, useEffect, useContext } from "react";
 import { UserContext } from "./UserProvider";
 import Checkout from "./Checkout";
@@ -194,10 +193,9 @@ const Cart = () => {
       <h2 className="cart-title">Your Cart</h2>
       {productsLoading ? (
         <p>Loading products...</p>
-      ) : cart && cart.length === 0 ? (
+      ) : !cart || !cart.items || cart.items.length === 0 ? (
         <p className="cart-empty">Your cart is empty</p>
       ) : (
-        cart &&
         cart.items.map((item, index) => {
           const productId = user && user.id ? item.product_id : item.id;
           const product = products.find((p) => p.id === productId);

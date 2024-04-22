@@ -67,40 +67,45 @@ export const UserProvider = ({ children }) => {
     console.log("No cart found in local storage. Initializing empty cart.");
     return [];
   });
+  const updateUserCart = async (user_id, updatedCart) => {
+    if (Array.isArray(user_id)) {
+      console.log("Invalid user id:", user_id);
+      return;
+    }
 
-  const updateUserCart = async (user_id, cart) => {
-    const cartArray = Array.isArray(cart) ? cart : [cart];
-    const updatedCart = cartArray.map((item) => ({
-      product_id: String(item.id),
-      quantity: Number.isInteger(item.quantity) ? item.quantity : 1,
-    }));
     console.log("Updating cart for user with id:", user_id);
     console.log("Updated cart:", updatedCart);
 
     // Get the cart id for the user
-    const cartResponse = await fetch(`${BASE_URL}/api/cart/${user_id}`);
-    const cartData = await cartResponse.json();
-    if (cartData.cart) {
-      const cartId = cartData.cart.id;
-      console.log(`Cart ID for user with id ${user_id}: ${cartId}`);
+    try {
+      const cartResponse = await fetch(`${BASE_URL}/api/users/${user_id}/cart`);
+      const cartData = await cartResponse.json();
+      if (cartData.cart) {
+        const cartId = cartData.cart.id;
+        console.log(`Cart ID for user with id ${user_id}: ${cartId}`);
 
-      try {
-        const response = await fetch(`${BASE_URL}/api/cart/${cartId}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(updatedCart),
-        });
+        try {
+          const response = await fetch(`${BASE_URL}/api/cart/${cartId}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(updatedCart),
+          });
 
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+
+          const data = await response.json();
+          console.log(`Updated user cart: ${JSON.stringify(data)}`);
+          return data;
+        } catch (error) {
+          console.error("Error:", error);
         }
-
-        const data = await response.json();
-        console.log(`Updated user cart: ${JSON.stringify(data)}`);
-        return data;
-      } catch (error) {
-        console.error("Error:", error);
       }
+    } catch (error) {
+      console.error(
+        `Error fetching cart for user with id ${user_id}: ${error}`
+      );
     }
   };
 
