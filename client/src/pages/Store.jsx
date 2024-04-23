@@ -1,6 +1,7 @@
 import { useState, useContext } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { UserContext } from "./UserProvider";
+import "./Store.css";
 
 const Product = ({ product, handleAddToCart, buyNow }) => (
   <div key={product.id}>
@@ -48,13 +49,22 @@ const Store = () => {
         placeholder="Search products"
         value={searchTerm}
         onChange={handleSearchChange}
+        className="search-input" // Added class name
       />
-      <select value={sortOrder} onChange={handleSortChange}>
+      <select
+        value={sortOrder}
+        onChange={handleSortChange}
+        className="sort-select"
+      >
         <option value="none">Sort by price</option>
         <option value="lowToHigh">Low to High</option>
         <option value="highToLow">High to Low</option>
       </select>
-      <button id="view-cart-button" onClick={() => navigate("/cart")}>
+      <button
+        id="view-cart-button"
+        onClick={() => navigate("/cart")}
+        className="cart-button"
+      >
         View Cart
       </button>
       <div className="item-container">
@@ -64,6 +74,7 @@ const Store = () => {
               product={product}
               handleAddToCart={() => addToCart(product)}
               buyNow={buyNow}
+              className="product-item" // Added class name
             />
             <Link
               to={`/products/${product.id}`}
