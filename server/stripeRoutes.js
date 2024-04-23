@@ -1,25 +1,22 @@
 const express = require("express");
-const router = express.Router();
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
+
+const router = express.Router();
 
 router.post("/create-checkout-session", async (req, res) => {
   try {
-    // Assume req.body.products is an array of product IDs the user wants to purchase
     const productIds = req.body.products;
-
-    // Fetch the corresponding products from your database
     const products = await getProductsFromDatabase(productIds); // Replace with your actual function to fetch products
 
-    // Create the line_items array
     const line_items = products.map((product) => ({
       price_data: {
         currency: "usd",
         product_data: {
-          name: product.name, // Use the actual product name
+          name: product.name,
         },
-        unit_amount: product.price, // Use the actual product price
+        unit_amount: product.price,
       },
-      quantity: 1, // Adjust as needed
+      quantity: 1,
     }));
 
     const session = await stripe.checkout.sessions.create({

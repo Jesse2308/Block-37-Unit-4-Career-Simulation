@@ -3,14 +3,14 @@ import "./AdminAccount.css";
 const BASE_URL = "http://localhost:3000";
 
 const AdminAccount = () => {
-  // State variables for products, users, and new product details
   const [products, setProducts] = useState([]);
   const [users, setUsers] = useState([]);
-  const [newProductName, setNewProductName] = useState("");
-  const [newProductPrice, setNewProductPrice] = useState("");
-  const [newProductImage, setNewProductImage] = useState(""); // New state variable for new product image
+  const [newProduct, setNewProduct] = useState({
+    name: "",
+    price: "",
+    image: "",
+  });
 
-  // Fetch products from the API
   const fetchProducts = async () => {
     try {
       const response = await fetch(`${BASE_URL}/api/products`);
@@ -19,12 +19,11 @@ const AdminAccount = () => {
       }
       const data = await response.json();
       setProducts(data);
-      console.log("Fetched products:", data); // Log the fetched products
     } catch (error) {
       console.error("Error fetching products:", error);
     }
   };
-  // Fetch users from the API
+
   const fetchUsersFromServer = async () => {
     try {
       const token = localStorage.getItem("token");
@@ -35,27 +34,22 @@ const AdminAccount = () => {
         },
       });
 
-      console.log("Response from fetching users:", response); // Log the response
-
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       const data = await response.json();
       setUsers(data);
-      console.log("Fetched users:", data); // Log the fetched users
     } catch (error) {
       console.error("Error fetching users:", error);
     }
   };
 
-  // Fetch products and users when the component mounts
   useEffect(() => {
     fetchProducts();
     fetchUsersFromServer();
   }, []);
 
-  // Add a new product
   const handleAddProduct = async (newProduct) => {
     try {
       const response = await fetch(`${BASE_URL}/api/admin/products`, {
@@ -70,13 +64,11 @@ const AdminAccount = () => {
       }
       const data = await response.json();
       setProducts((prevProducts) => [...prevProducts, data]);
-      console.log("Added product:", data); // Log the added product
     } catch (error) {
       console.error("Error adding product:", error);
     }
   };
 
-  // Delete a product
   const handleDeleteProduct = async (productId) => {
     try {
       const response = await fetch(
@@ -91,23 +83,21 @@ const AdminAccount = () => {
       setProducts((prevProducts) =>
         prevProducts.filter((product) => product.id !== productId)
       );
-      console.log("Deleted product with id:", productId); // Log the id of the deleted product
     } catch (error) {
       console.error("Error deleting product:", error);
     }
   };
 
-  // Update a product's name
-  const handleUpdateProductName = async (productId, newName) => {
+  const handleUpdateProduct = async (productId, field, newValue) => {
     try {
       const response = await fetch(
-        `${BASE_URL}/api/admin/products/${productId}/name`,
+        `${BASE_URL}/api/admin/products/${productId}/${field}`,
         {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ name: newName }),
+          body: JSON.stringify({ [field]: newValue }),
         }
       );
       if (!response.ok) {
@@ -119,68 +109,10 @@ const AdminAccount = () => {
           product.id === productId ? data : product
         )
       );
-      console.log("Updated product name:", data); // Log the product with the updated name
     } catch (error) {
-      console.error("Error updating product name:", error);
+      console.error(`Error updating product ${field}:`, error);
     }
   };
-
-  // Update a product's price
-  const handleUpdateProductPrice = async (productId, newPrice) => {
-    try {
-      const response = await fetch(
-        `${BASE_URL}/api/admin/products/${productId}/price`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ price: newPrice }),
-        }
-      );
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      const data = await response.json();
-      setProducts((prevProducts) =>
-        prevProducts.map((product) =>
-          product.id === productId ? data : product
-        )
-      );
-      console.log("Updated product price:", data); // Log the product with the updated price
-    } catch (error) {
-      console.error("Error updating product price:", error);
-    }
-  };
-
-  // Update a product's image
-  const handleUpdateProductImage = async (productId, newImage) => {
-    try {
-      const response = await fetch(
-        `${BASE_URL}/api/admin/products/${productId}/image`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ image: newImage }),
-        }
-      );
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      const data = await response.json();
-      setProducts((prevProducts) =>
-        prevProducts.map((product) =>
-          product.id === productId ? data : product
-        )
-      );
-      console.log("Updated product image:", data); // Log the product with the updated image
-    } catch (error) {
-      console.error("Error updating product image:", error);
-    }
-  };
-
   // Render the component
   return (
     <div className="admin-account">
@@ -201,14 +133,16 @@ const AdminAccount = () => {
             <form
               onSubmit={(e) => {
                 e.preventDefault();
-                handleUpdateProductName(product.id, newProductName);
+                handleUpdateProduct(product.id, "name", newProduct.name);
               }}
               className="update-name-form"
             >
               <input
                 type="text"
                 placeholder="New product name"
-                onChange={(e) => setNewProductName(e.target.value)}
+                onChange={(e) =>
+                  setNewProduct({ ...newProduct, name: e.target.value })
+                }
                 className="update-name-input"
               />
               <button type="submit" className="update-name-button">
@@ -218,14 +152,16 @@ const AdminAccount = () => {
             <form
               onSubmit={(e) => {
                 e.preventDefault();
-                handleUpdateProductPrice(product.id, newProductPrice);
+                handleUpdateProduct(product.id, "price", newProduct.price);
               }}
               className="update-price-form"
             >
               <input
                 type="number"
                 placeholder="New product price"
-                onChange={(e) => setNewProductPrice(e.target.value)}
+                onChange={(e) =>
+                  setNewProduct({ ...newProduct, price: e.target.value })
+                }
                 className="update-price-input"
               />
               <button type="submit" className="update-price-button">
@@ -235,14 +171,16 @@ const AdminAccount = () => {
             <form
               onSubmit={(e) => {
                 e.preventDefault();
-                handleUpdateProductImage(product.id, newProductImage);
+                handleUpdateProduct(product.id, "image", newProduct.image);
               }}
               className="update-image-form"
             >
               <input
                 type="text"
                 placeholder="New product image URL"
-                onChange={(e) => setNewProductImage(e.target.value)}
+                onChange={(e) =>
+                  setNewProduct({ ...newProduct, image: e.target.value })
+                }
                 className="update-image-input"
               />
               <button type="submit" className="update-image-button">
@@ -261,26 +199,39 @@ const AdminAccount = () => {
 
       <div className="add-product-container">
         <h2 className="add-product-title">Add Product</h2>
-        <form onSubmit={handleAddProduct} className="add-product-form">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleAddProduct(newProduct);
+            setNewProduct({ name: "", price: "", image: "" });
+          }}
+          className="add-product-form"
+        >
           <input
             type="text"
             placeholder="Product name"
-            value={newProductName}
-            onChange={(e) => setNewProductName(e.target.value)}
+            value={newProduct.name}
+            onChange={(e) =>
+              setNewProduct({ ...newProduct, name: e.target.value })
+            }
             className="add-product-name-input"
           />
           <input
             type="number"
             placeholder="Product price"
-            value={newProductPrice}
-            onChange={(e) => setNewProductPrice(e.target.value)}
+            value={newProduct.price}
+            onChange={(e) =>
+              setNewProduct({ ...newProduct, price: e.target.value })
+            }
             className="add-product-price-input"
           />
           <input
             type="text"
             placeholder="Product image URL"
-            value={newProductImage}
-            onChange={(e) => setNewProductImage(e.target.value)}
+            value={newProduct.image}
+            onChange={(e) =>
+              setNewProduct({ ...newProduct, image: e.target.value })
+            }
             className="add-product-image-input"
           />
           <button type="submit" className="add-product-button">

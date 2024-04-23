@@ -2,19 +2,12 @@ const express = require("express");
 const cartRoutes = express.Router();
 const { client } = require("./db");
 
-// SQL query to insert a new item into the cart
 const INSERT_INTO_CART = `
-  WITH upsert AS (
-    UPDATE cart_item 
-    SET quantity = quantity + $3
-    WHERE cart_id = (SELECT id FROM cart WHERE user_id = $1) AND product_id = $2
-    RETURNING *
-  )
   INSERT INTO cart_item (cart_id, product_id, quantity)
-  SELECT (SELECT id FROM cart WHERE user_id = $1), $2, $3
-  WHERE NOT EXISTS (SELECT * FROM upsert)
+  VALUES( (SELECT id FROM cart WHERE user_id = $1), $2, $3)
   RETURNING *;
 `;
+
 const SELECT_CART_FOR_USER = `
   SELECT cart.id AS cart_id, cart_item.*
   FROM cart_item
@@ -22,13 +15,11 @@ const SELECT_CART_FOR_USER = `
   WHERE cart.user_id = $1;
 `;
 
-// SQL query to delete an item from the cart
 const DELETE_ITEM_FROM_CART = `
   DELETE FROM cart_item
   WHERE cart_id = (SELECT id FROM cart WHERE user_id = $1) AND product_id = $2;
 `;
 
-// Updated SQL query to update an item in the cart
 const UPDATE_CART_ITEM = `
   UPDATE cart_item
   SET quantity = $3
@@ -36,159 +27,115 @@ const UPDATE_CART_ITEM = `
   RETURNING *;
 `;
 
-// SQL query to select the items for a specific cart
 const SELECT_ITEMS_FOR_CART = `
   SELECT *
   FROM cart_item
   WHERE cart_id = $1;
 `;
 
-// Route to add an item to the cart
 cartRoutes.post("/users/:user_id/cart", async (req, res, next) => {
-  try {
-    const user_id = Number(req.params.user_id);
-    const product_id = Number(req.body.product_id);
-    const quantity = Number(req.body.quantity);
-
-    if (isNaN(user_id) || isNaN(product_id) || isNaN(quantity)) {
-      res.status(400).send({
-        success: false,
-        message: "user_id, product_id and quantity must be numbers",
-      });
-      return;
-    }
-
-    const newCartItem = await client.query(INSERT_INTO_CART, [
-      user_id,
-      product_id,
-      quantity,
-    ]);
-    res.status(201).json(newCartItem.rows[0]);
-  } catch (err) {
-    next(err);
+  const { user_id, product_id, quantity } = req.params;
+  if (isNaN(user_id) || isNaN(product_id) || isNaN(quantity)) {
+    return res.status(400).send({
+      success: false,
+      message: "user_id, product_id and quantity must be numbers",
+    });
   }
+
+  const newCartItem = await client.query(INSERT_INTO_CART, [
+    user_id,
+    product_id,
+    quantity,
+  ]);
+  res.status(201).json(newCartItem.rows[0]);
 });
 
-// Route to delete an item from the cart
 cartRoutes.delete(
   "/users/:user_id/cart/:product_id",
   async (req, res, next) => {
-    try {
-      const user_id = Number(req.params.user_id);
-      const product_id = Number(req.params.product_id);
-
-      if (isNaN(user_id) || isNaN(product_id)) {
-        res
-          .status(400)
-          .send({ success: false, message: "Invalid user_id or product_id" });
-        return;
-      }
-
-      const deletedCartItem = await client.query(DELETE_ITEM_FROM_CART, [
-        user_id,
-        product_id,
-      ]);
-
-      if (deletedCartItem.rowCount === 0) {
-        res
-          .status(404)
-          .send({ success: false, message: "Item not found in cart" });
-        return;
-      }
-
-      res.status(200).json(deletedCartItem.rows[0]);
-    } catch (err) {
-      next(err);
+    const { user_id, product_id } = req.params;
+    if (isNaN(user_id) || isNaN(product_id)) {
+      return res
+        .status(400)
+        .send({ success: false, message: "Invalid user_id or product_id" });
     }
+
+    const deletedCartItem = await client.query(DELETE_ITEM_FROM_CART, [
+      user_id,
+      product_id,
+    ]);
+
+    if (deletedCartItem.rowCount === 0) {
+      return res
+        .status(404)
+        .send({ success: false, message: "Item not found in cart" });
+    }
+
+    res.status(200).json(deletedCartItem.rows[0]);
   }
 );
 
 cartRoutes.put("/users/:user_id/cart/:product_id", async (req, res, next) => {
-  try {
-    const user_id = Number(req.params.user_id);
-    const product_id = Number(req.params.product_id);
-    const quantity = Number(req.body.quantity);
-
-    if (isNaN(user_id) || isNaN(product_id) || isNaN(quantity)) {
-      res.status(400).send({
-        success: false,
-        message: "user_id, product_id and quantity must be numbers",
-      });
-      return;
-    }
-
-    const updatedCartItem = await client.query(UPDATE_CART_ITEM, [
-      user_id,
-      product_id,
-      quantity,
-    ]);
-
-    if (updatedCartItem.rowCount === 0) {
-      res
-        .status(404)
-        .send({ success: false, message: "Item not found in cart" });
-      return;
-    }
-
-    res.status(200).send({
-      success: true,
-      message: "Cart updated successfully",
-      item: updatedCartItem.rows[0],
+  const { user_id, product_id, quantity } = req.params;
+  if (isNaN(user_id) || isNaN(product_id) || isNaN(quantity)) {
+    return res.status(400).send({
+      success: false,
+      message: "user_id, product_id and quantity must be numbers",
     });
-  } catch (err) {
-    next(err);
   }
+
+  const updatedCartItem = await client.query(UPDATE_CART_ITEM, [
+    user_id,
+    product_id,
+    quantity,
+  ]);
+
+  if (updatedCartItem.rowCount === 0) {
+    return res
+      .status(404)
+      .send({ success: false, message: "Item not found in cart" });
+  }
+
+  res.status(200).send({
+    success: true,
+    message: "Cart updated successfully",
+    item: updatedCartItem.rows[0],
+  });
 });
 
-// Route to get the cart for a specific user
 cartRoutes.get("/users/:user_id/cart", async (req, res, next) => {
-  try {
-    const user_id = Number(req.params.user_id);
-
-    if (isNaN(user_id)) {
-      res.status(400).send({ success: false, message: "Invalid user_id" });
-      return;
-    }
-
-    const { rows } = await client.query(SELECT_CART_FOR_USER, [user_id]);
-
-    if (rows.length === 0) {
-      res
-        .status(404)
-        .send({ success: false, message: "Cart not found for user" });
-    } else {
-      const cart = { id: rows[0].cart_id, items: rows };
-      res.status(200).json(cart);
-    }
-  } catch (err) {
-    console.error(err);
-    next(err);
+  const user_id = Number(req.params.user_id);
+  if (isNaN(user_id)) {
+    return res.status(400).send({ success: false, message: "Invalid user_id" });
   }
+
+  const { rows } = await client.query(SELECT_CART_FOR_USER, [user_id]);
+
+  if (rows.length === 0) {
+    return res
+      .status(404)
+      .send({ success: false, message: "Cart not found for user" });
+  }
+
+  const cart = { id: rows[0].cart_id, items: rows };
+  res.status(200).json(cart);
 });
 
-// Route to get the items for a specific cart
 cartRoutes.get("/cart_items/:cart_id", async (req, res, next) => {
-  try {
-    const cart_id = Number(req.params.cart_id);
-
-    if (isNaN(cart_id)) {
-      res.status(400).send({ success: false, message: "Invalid cart_id" });
-      return;
-    }
-
-    const { rows } = await client.query(SELECT_ITEMS_FOR_CART, [cart_id]);
-
-    if (rows.length === 0) {
-      res
-        .status(404)
-        .send({ success: false, message: "No items found for this cart" });
-    } else {
-      res.status(200).json(rows);
-    }
-  } catch (err) {
-    console.error(err);
-    next(err);
+  const cart_id = Number(req.params.cart_id);
+  if (isNaN(cart_id)) {
+    return res.status(400).send({ success: false, message: "Invalid cart_id" });
   }
+
+  const { rows } = await client.query(SELECT_ITEMS_FOR_CART, [cart_id]);
+
+  if (rows.length === 0) {
+    return res
+      .status(404)
+      .send({ success: false, message: "No items found for this cart" });
+  }
+
+  res.status(200).json(rows);
 });
 
 module.exports = cartRoutes;

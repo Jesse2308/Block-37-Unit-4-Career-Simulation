@@ -1,41 +1,16 @@
-// Import dependencies
 const express = require("express");
-const jwt = require("jsonwebtoken");
-const bcrypt = require("bcrypt");
-const nodemailer = require("nodemailer");
-const crypto = require("crypto");
 const { client, getUserById, getUserByEmail } = require("./db");
+const { authenticateUser, generateToken } = require("./authHelpers");
+const jwt = require("jsonwebtoken");
 
-// Create Express router
 const authRoutes = express.Router();
 
-// Configure email transporter
-const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 587,
-  secure: false,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
-
-// User registration route
 authRoutes.post("/register", registerUser);
-
-// User login route
 authRoutes.post("/login", loginUser);
-
-// Get current user route
 authRoutes.get("/me", getCurrentUser);
-
-// Update user details route
 authRoutes.put("/user", updateUserDetails);
 
-// Export the router
 module.exports = authRoutes;
-
-// Route handler functions
 
 // Register a new user
 async function registerUser(req, res, next) {
@@ -98,33 +73,35 @@ async function registerUser(req, res, next) {
 
 // Login a user
 async function loginUser(req, res, next) {
-  const { email, password } = req.body;
-  if (!email || !password) {
-    res
-      .status(400)
-      .send({ success: false, message: "Missing required fields" });
-    return;
-  } else {
-    try {
-      const user = await authenticateUser(email, password);
-      if (user) {
-        const token = generateToken(user);
+  async function loginUser(req, res, next) {
+    const { email, password } = req.body;
+    if (!email || !password) {
+      res
+        .status(400)
+        .send({ success: false, message: "Missing required fields" });
+      return;
+    } else {
+      try {
+        const user = await authenticateUser(email, password);
+        if (user) {
+          const token = generateToken(user);
 
-        res.json({
-          success: true,
-          userId: user.id,
-          token,
-          email: user.email,
-          isadmin: user.isadmin, // Include isadmin in the response
-          message: "User logged in",
-        });
-      } else {
-        res
-          .status(401)
-          .send({ success: false, message: "Invalid credentials" });
+          res.json({
+            success: true,
+            userId: user.id,
+            token,
+            email: user.email,
+            isadmin: user.isadmin, // Include isadmin in the response
+            message: "User logged in",
+          });
+        } else {
+          res
+            .status(401)
+            .send({ success: false, message: "Invalid credentials" });
+        }
+      } catch (error) {
+        next(error);
       }
-    } catch (error) {
-      next(error);
     }
   }
 }
@@ -149,6 +126,7 @@ async function getCurrentUser(req, res) {
   }
 }
 
+// Update user details
 async function updateUserDetails(req, res, next) {
   const token = req.headers.authorization.split(" ")[1];
   const { username } = req.body; // Extract only username from request body
@@ -162,11 +140,11 @@ async function updateUserDetails(req, res, next) {
   try {
     const payload = jwt.verify(token, process.env.JWT_SECRET);
     const SQL = `
-  UPDATE users 
-  SET username = $1 /* Update only username in database */
-  WHERE id = $2
-  RETURNING *;
-`;
+    UPDATE users 
+    SET username = $1 /* Update only username in database */
+    WHERE id = $2
+    RETURNING *;
+  `;
     const response = await client.query(SQL, [
       username, // Pass username to SQL query
       payload.userId,
@@ -176,40 +154,4 @@ async function updateUserDetails(req, res, next) {
   } catch (error) {
     next(error);
   }
-}
-
-// Function to authenticate a user
-async function authenticateUser(email, password) {
-  // SQL query to find the user with the given email
-  const SQL = `SELECT * FROM users WHERE email = $1;`;
-  const response = await client.query(SQL, [email]);
-
-  // If user is found, check if the password is correct
-  if (response.rows.length > 0) {
-    const user = response.rows[0];
-    const isPasswordCorrect = await bcrypt.compare(password, user.password);
-
-    // If password is correct, return the user
-    if (isPasswordCorrect) {
-      return user;
-    }
-  }
-
-  // If user is not found or password is incorrect, return null
-  return null;
-}
-
-// Function to generate a token for a user
-function generateToken(user) {
-  // Payload of the token is the user id
-  const payload = { userId: user.id };
-
-  // Secret to sign the token is the JWT_SECRET environment variable
-  const secret = process.env.JWT_SECRET;
-
-  // Token expires in 1 hour
-  const options = { expiresIn: "1h" };
-
-  // Generate and return the token
-  return jwt.sign(payload, secret, options);
 }

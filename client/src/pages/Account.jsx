@@ -3,115 +3,94 @@ import { UserContext } from "./UserProvider";
 
 const BASE_URL = "http://localhost:3000";
 
-// This is the main Account component
 const Account = () => {
-  // State variables for user, loading status, error, user details, product details, and success message
   const { user, setCurrentUser } = useContext(UserContext);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [username, setUsername] = useState("");
-  const [email, setEmail] = useState("");
-  const [purchases, setPurchases] = useState([]);
-  const [productName, setProductName] = useState("");
-  const [productPrice, setProductPrice] = useState("");
-  const [productDetails, setProductDetails] = useState("");
-  const [productQuantity, setProductQuantity] = useState("");
-  const [productCategory, setProductCategory] = useState("");
-  const [productImage, setProductImage] = useState("");
-  const [products, setProducts] = useState([]);
   const [successMessage, setSuccessMessage] = useState("");
-  const [editingProduct, setEditingProduct] = useState(null);
 
-  // Fetch the user's details
-  useEffect(() => {
-    console.log("Fetching user details...");
+  // User details
+  const [username, setUsername] = useState("");
+  const [purchases, setPurchases] = useState([]);
+
+  // Product details
+  const [product, setProduct] = useState({
+    name: "",
+    price: "",
+    details: "",
+    quantity: "",
+    category: "",
+    image: "",
+  });
+  const [products, setProducts] = useState([]);
+
+  const fetchWithAuth = async (url, options = {}) => {
     const token = localStorage.getItem("token");
-
     if (!token) {
-      console.log("No token found");
       setError("No token found");
       setIsLoading(false);
       return;
     }
 
-    const headers = {
-      Authorization: `Bearer ${token}`,
-    };
+    const headers = { Authorization: `Bearer ${token}`, ...options.headers };
 
-    fetch(`${BASE_URL}/api/me`, { headers })
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return response.json();
-      })
+    const response = await fetch(url, { ...options, headers });
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    return response.json();
+  };
+
+  const fetchUserDetails = () => {
+    fetchWithAuth(`${BASE_URL}/api/me`)
       .then((data) => {
         if (data && data.user) {
-          console.log("User details fetched successfully");
           setCurrentUser(data.user);
           setUsername(data.user.username || "");
-          setEmail(data.user.email || "");
-          console.log("Current user:", data.user);
         } else {
-          console.log("User not found");
           setError("User not found");
           setIsLoading(false);
         }
       })
       .catch((error) => {
-        console.log("Error fetching user details:", error.message);
         setError(error.message);
         setIsLoading(false);
       });
-  }, []);
+  };
 
-  // Fetch the user's orders
-  useEffect(() => {
-    if (!user) {
-      console.log("User not set, skipping fetch for orders");
-      return;
-    }
+  const fetchUserOrders = () => {
+    if (!user) return;
 
-    console.log("Fetching orders...");
-    const token = localStorage.getItem("token");
-
-    if (!token) {
-      console.log("No token found");
-      setError("No token found");
-      setIsLoading(false);
-      return;
-    }
-
-    const headers = {
-      Authorization: `Bearer ${token}`,
-    };
-
-    fetch(`${BASE_URL}/api/orders/${user.id}`, { headers })
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return response.json();
-      })
+    fetchWithAuth(`${BASE_URL}/api/orders/${user.id}`)
       .then((data) => {
-        if (Array.isArray(data) && data.length > 0) {
-          console.log("Orders fetched successfully");
-          setPurchases(data);
-        } else {
-          console.log("No orders found");
-          setPurchases([]);
-        }
+        setPurchases(Array.isArray(data) ? data : []);
         setIsLoading(false);
       })
       .catch((error) => {
-        console.log("Error fetching orders:", error.message);
         setError(error.message);
         setIsLoading(false);
       });
-  }, [user]);
+  };
+
+  const fetchUserProducts = () => {
+    if (!user) return;
+
+    fetchWithAuth(`${BASE_URL}/api/products/user/${user.id}`)
+      .then((data) => {
+        setProducts(Array.isArray(data) ? data : []);
+        setIsLoading(false);
+      })
+      .catch((error) => {
+        setError(error.message);
+        setIsLoading(false);
+      });
+  };
+
+  useEffect(fetchUserDetails, []);
+  useEffect(fetchUserOrders, [user]);
+  useEffect(fetchUserProducts, [user]);
 
   const handleUpdateAccount = async (event) => {
-    console.log("Handling account update");
     event.preventDefault();
 
     if (!username) {
@@ -146,66 +125,19 @@ const Account = () => {
         setCurrentUser(data.user);
       })
       .catch((error) => {
-        console.error("Error:", error);
-        // You can set the error message to your state to display it in your UI
         setError(error.message);
       });
   };
-  // Fetch the user's products
-  useEffect(() => {
-    if (!user) {
-      console.log("User not set, skipping fetch for products");
-      return;
-    }
 
-    console.log("Fetching products...");
-    const token = localStorage.getItem("token");
-
-    if (!token) {
-      console.log("No token found");
-      setError("No token found");
-      setIsLoading(false);
-      return;
-    }
-
-    const headers = {
-      Authorization: `Bearer ${token}`,
-    };
-
-    fetch(`${BASE_URL}/api/products/user/${user.id}`, { headers })
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return response.json();
-      })
-      .then((data) => {
-        if (Array.isArray(data) && data.length > 0) {
-          console.log("Products fetched successfully");
-          setProducts(data);
-        } else {
-          console.log("No products found");
-          setProducts([]);
-        }
-        setIsLoading(false);
-      })
-      .catch((error) => {
-        console.log("Error fetching products:", error.message);
-        setError(error.message);
-        setIsLoading(false);
-      });
-  }, [user]);
-
-  const handleAddProduct = async (event) => {
-    console.log("Handling product addition");
+  const handleProductAction = async (event, productId, method) => {
     event.preventDefault();
 
     if (
-      !productName ||
-      !productCategory ||
-      !productPrice ||
-      !productDetails ||
-      !productQuantity
+      !product.name ||
+      !product.category ||
+      !product.price ||
+      !product.details ||
+      !product.quantity
     ) {
       alert("All fields are required");
       return;
@@ -223,16 +155,11 @@ const Account = () => {
       "Content-Type": "application/json",
     };
 
-    fetch(`${BASE_URL}/api/products`, {
-      method: "POST",
+    fetch(`${BASE_URL}/api/products${productId ? `/${productId}` : ""}`, {
+      method,
       headers,
       body: JSON.stringify({
-        name: productName,
-        category: productCategory,
-        price: productPrice,
-        details: productDetails,
-        quantity: productQuantity,
-        image: productImage,
+        ...product,
         sellerId: user.id,
       }),
     })
@@ -244,58 +171,26 @@ const Account = () => {
       })
       .then((data) => {
         // Clear the form
-        setProductName("");
-        setProductPrice("");
-        setProductDetails("");
-        setProductQuantity("");
-        setProductCategory("");
-        setProductImage("");
+        setProduct({
+          name: "",
+          price: "",
+          details: "",
+          quantity: "",
+          category: "",
+          image: "",
+        });
 
         // Fetch the products again
-        fetch(`${BASE_URL}/api/products/user/${user.id}`, { headers })
-          .then((response) => response.json())
-          .then((data) => setProducts(data))
-          .catch((error) => setError(error.message));
+        fetchUserProducts();
       })
       .catch((error) => setError(error.message));
   };
 
-  const updateProduct = async (productId, updatedProduct) => {
-    console.log("Updating product with ID:", productId);
-    const token = localStorage.getItem("token");
-
-    if (!token) {
-      setError("No token found");
-      return;
-    }
-    const headers = {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    };
-
-    const response = await fetch(`${BASE_URL}/api/products/${productId}`, {
-      method: "PUT",
-      headers,
-      body: JSON.stringify({ ...updatedProduct, sellerId: user.id }),
-    });
-
-    if (response.ok) {
-      // Update the product in the state
-      const updatedProduct = await response.json();
-      setProducts(
-        products.map((product) =>
-          product.id === productId ? updatedProduct : product
-        )
-      );
-      setSuccessMessage("Product successfully updated"); // Add this line
-    } else {
-      const errorData = await response.json();
-      setError(errorData.message);
-    }
-  };
+  const handleAddProduct = (event) => handleProductAction(event, null, "POST");
+  const handleUpdateProduct = (event, productId) =>
+    handleProductAction(event, productId, "PUT");
 
   const deleteProduct = async (productId) => {
-    console.log("Deleting product with ID:", productId);
     const token = localStorage.getItem("token");
 
     if (!token) {
@@ -316,7 +211,7 @@ const Account = () => {
     if (response.ok) {
       // Remove the deleted product from the state
       setProducts(products.filter((product) => product.id !== productId));
-      setSuccessMessage("Product successfully deleted"); // Add this line
+      setSuccessMessage("Product successfully deleted");
     } else {
       const errorData = await response.json();
       setError(errorData.message);
@@ -385,6 +280,70 @@ const Account = () => {
                   <button onClick={() => deleteProduct(product.id)}>
                     Delete
                   </button>
+                  <h4>Update Product</h4>
+                  <form onSubmit={(e) => handleUpdateProduct(e, product.id)}>
+                    <label>
+                      Name:
+                      <input
+                        type="text"
+                        value={product.name}
+                        onChange={(e) =>
+                          setProduct({ ...product, name: e.target.value })
+                        }
+                      />
+                    </label>
+                    <label>
+                      Category:
+                      <input
+                        type="text"
+                        value={product.category}
+                        onChange={(e) =>
+                          setProduct({ ...product, category: e.target.value })
+                        }
+                      />
+                    </label>
+                    <label>
+                      Price:
+                      <input
+                        type="number"
+                        value={product.price}
+                        onChange={(e) =>
+                          setProduct({ ...product, price: e.target.value })
+                        }
+                      />
+                    </label>
+                    <label>
+                      Details:
+                      <textarea
+                        value={product.details}
+                        onChange={(e) =>
+                          setProduct({ ...product, details: e.target.value })
+                        }
+                      />
+                    </label>
+                    <label>
+                      Quantity:
+                      <input
+                        type="number"
+                        value={product.quantity}
+                        onChange={(e) =>
+                          setProduct({ ...product, quantity: e.target.value })
+                        }
+                      />
+                    </label>
+                    <label>
+                      Image:
+                      <img src={product.image} alt="Product" />
+                      <input
+                        type="text"
+                        value={product.image}
+                        onChange={(e) =>
+                          setProduct({ ...product, image: e.target.value })
+                        }
+                      />
+                    </label>
+                    <button type="submit">Update Product</button>
+                  </form>
                 </li>
               ))
             ) : (
@@ -397,48 +356,60 @@ const Account = () => {
               Name:
               <input
                 type="text"
-                value={productName}
-                onChange={(e) => setProductName(e.target.value)}
+                value={product.name}
+                onChange={(e) =>
+                  setProduct({ ...product, name: e.target.value })
+                }
               />
             </label>
             <label>
               Category:
               <input
                 type="text"
-                value={productCategory}
-                onChange={(e) => setProductCategory(e.target.value)}
+                value={product.category}
+                onChange={(e) =>
+                  setProduct({ ...product, category: e.target.value })
+                }
               />
             </label>
             <label>
               Price:
               <input
                 type="number"
-                value={productPrice}
-                onChange={(e) => setProductPrice(e.target.value)}
+                value={product.price}
+                onChange={(e) =>
+                  setProduct({ ...product, price: e.target.value })
+                }
               />
             </label>
             <label>
               Details:
               <textarea
-                value={productDetails}
-                onChange={(e) => setProductDetails(e.target.value)}
+                value={product.details}
+                onChange={(e) =>
+                  setProduct({ ...product, details: e.target.value })
+                }
               />
             </label>
             <label>
               Quantity:
               <input
                 type="number"
-                value={productQuantity}
-                onChange={(e) => setProductQuantity(e.target.value)}
+                value={product.quantity}
+                onChange={(e) =>
+                  setProduct({ ...product, quantity: e.target.value })
+                }
               />
             </label>
             <label>
               Image:
-              <img src={productImage} alt="Product" />
+              <img src={product.image} alt="Product" />
               <input
                 type="text"
-                value={productImage}
-                onChange={(e) => setProductImage(e.target.value)}
+                value={product.image}
+                onChange={(e) =>
+                  setProduct({ ...product, image: e.target.value })
+                }
               />
             </label>
             <button type="submit">Add Product</button>

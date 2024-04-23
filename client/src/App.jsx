@@ -1,4 +1,4 @@
-import { useContext, useState, useEffect } from "react";
+import { useContext, useEffect } from "react";
 import { Routes, Route, useNavigate } from "react-router-dom";
 
 import {
@@ -18,29 +18,15 @@ import {
 import { UserContext } from "./pages/UserProvider";
 
 function App() {
-  // State for the cart, initially an empty array
-  const [cart, setCart] = useState([]);
-  // Function to update the cart
-  const updateCart = (newCart) => {
-    console.log("Updating cart with:", newCart);
-    setCart(newCart);
-  };
-
-  // The component returns the UserProvider wrapping all other components
-  // and the Routes for the different pages of the app
-
   return (
     <UserProvider>
-      <NavBar cart={cart} />
+      <NavBar />
       <Routes>
-        <Route
-          index
-          element={<Store updateCart={updateCart} setCart={setCart} />}
-        />
+        <Route index element={<Store />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/account" element={<AccountPage />} />
-        <Route path="/cart" element={<Cart setCart={setCart} />} />
+        <Route path="/cart" element={<Cart />} />
         <Route path="/products/:id" element={<ProductDetail />} />
         <Route path="/checkout" element={<Checkout />} />
         <Route path="/admin" element={<Admin />} />
@@ -50,24 +36,17 @@ function App() {
   );
 }
 
-// The AccountPage component
 function AccountPage() {
-  // Getting the user from the UserContext
   const { user } = useContext(UserContext);
-  // Getting the navigate function from useNavigate
   const navigate = useNavigate();
 
-  // useEffect hook to navigate to the AdminAccount page if the user is an admin
   useEffect(() => {
     if (user && user.role === "admin") {
-      console.log("User is admin, navigating to AdminAccount");
       navigate("/AdminAccount");
     }
   }, [user, navigate]);
 
-  // If the user is an admin, render the AdminAccount component, otherwise render the Account component
   return user && user.role === "admin" ? <AdminAccount /> : <Account />;
 }
 
-// Exporting the App component as default
 export default App;
