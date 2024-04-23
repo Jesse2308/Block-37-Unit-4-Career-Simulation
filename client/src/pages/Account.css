@@ -1,0 +1,94 @@
+.account-container {
+  width: 80%;
+  margin: 0 auto;
+  font-family: Arial, sans-serif;
+}
+
+.account-title,
+.purchase-history-title,
+.update-account-title,
+.products-title,
+.add-product-title {
+  color: #333;
+  font-size: 1.5em;
+}
+
+.user-info {
+  background-color: #f9f9f9;
+  padding: 10px;
+  margin-bottom: 20px;
+}
+
+.user-name,
+.user-email {
+  font-size: 1.2em;
+  color: #555;
+}
+
+.loading-message {
+  color: #888;
+  font-size: 1.2em;
+}
+
+.purchase-list,
+.product-list {
+  list-style-type: none;
+  padding: 0;
+}
+
+.purchase-item,
+.product-item {
+  margin-bottom: 10px;
+  padding: 10px;
+  background-color: #f0f0f0;
+}
+
+.update-account-form,
+.update-product-form,
+.add-product-form {
+  margin-bottom: 20px;
+}
+
+.username-label,
+.username-input,
+.update-button {
+  display: block;
+  margin-bottom: 10px;
+}
+
+.success-message {
+  color: green;
+  font-size: 1.2em;
+}
+
+.seller-products {
+  background-color: #f9f9f9;
+  padding: 10px;
+  margin-bottom: 20px;
+}
+
+.delete-button {
+  color: #fff;
+  background-color: #f00;
+  padding: 5px 10px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  width: auto;
+}
+
+.no-products-message {
+  color: #888;
+  font-size: 1.2em;
+}
+
+.image-addproduct {
+  display: flex;
+  align-items: center;
+}
+
+.image-addproduct img {
+  width: 50px;
+  height: 50px;
+  margin-right: 10px;
+}

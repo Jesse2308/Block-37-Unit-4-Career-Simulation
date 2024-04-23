@@ -1,5 +1,6 @@
 import { useEffect, useState, useContext } from "react";
 import { UserContext } from "./UserProvider";
+import "./Account.css";
 
 const BASE_URL = "http://localhost:3000";
 
@@ -242,50 +243,59 @@ const Account = () => {
   }
 
   return (
-    <div>
-      <h2>Account</h2>
+    <div className="account-container">
+      <h2 className="account-title">Account</h2>
       {user ? (
-        <>
+        <div className="user-info">
           <p>Welcome, {user.username}</p>
           <p>Email: {user.email}</p>
-        </>
+        </div>
       ) : (
-        <p>Loading user data...</p>
+        <p className="loading-message">Loading user data...</p>
       )}
-      <h3>Purchase History</h3>
-      <ul>
+      <h3 className="purchase-history-title">Purchase History</h3>
+      <ul className="purchase-list">
         {purchases.map((purchase) => (
-          <li key={purchase.id}>
+          <li key={purchase.id} className="purchase-item">
             {purchase.product_name} - {purchase.quantity}
           </li>
         ))}
       </ul>
-      <h3>Update Account</h3>
-      <form onSubmit={handleUpdateAccount}>
-        <label>
+      <h3 className="update-account-title">Update Account</h3>
+      <form onSubmit={handleUpdateAccount} className="update-account-form">
+        <label className="username-label">
           Username:
           <input
             type="text"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
+            className="username-input"
           />
         </label>
-        <button type="submit">Update</button>
+        <button type="submit" className="update-button">
+          Update
+        </button>
       </form>
-      {successMessage && <p>{successMessage}</p>}
+      {successMessage && <p className="success-message">{successMessage}</p>}
       {user && user.accounttype === "seller" && (
-        <div>
+        <div className="seller-products">
           <h3>Your Products</h3>
-          <ul>
+          <ul className="product-list">
             {products && products.length > 0 ? (
               products.map((product) => (
-                <li key={product.id}>
+                <li key={product.id} className="product-item">
                   {product.name} - ${product.price}
-                  <button onClick={() => deleteProduct(product.id)}>
+                  <button
+                    onClick={() => deleteProduct(product.id)}
+                    className="delete-button"
+                  >
                     Delete
                   </button>
                   <h4>Update Product</h4>
-                  <form onSubmit={(e) => handleUpdateProduct(e, product.id)}>
+                  <form
+                    onSubmit={(e) => handleUpdateProduct(e, product.id)}
+                    className="update-product-form"
+                  >
                     <label>
                       Name:
                       <input
@@ -335,7 +345,7 @@ const Account = () => {
                         }
                       />
                     </label>
-                    <label>
+                    <label className="image-addproduct">
                       Image:
                       <img src={product.image} alt="Product" />
                       <input
@@ -355,7 +365,7 @@ const Account = () => {
             )}
           </ul>
           <h3>Add Product</h3>
-          <form onSubmit={handleAddProduct}>
+          <form onSubmit={handleAddProduct} className="add-product-form">
             <label>
               Name:
               <input
