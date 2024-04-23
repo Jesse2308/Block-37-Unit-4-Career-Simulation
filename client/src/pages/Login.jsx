@@ -1,37 +1,34 @@
-import { useState, useEffect, useContext } from "react";
+import { useState, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { UserContext } from "./UserProvider";
 import "./Login.css";
 
 const Login = () => {
-  const { user, login, isLoading } = useContext(UserContext);
+  const { login, isLoading } = useContext(UserContext);
 
   const [localEmail, setLocalEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState(null);
-
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await login(localEmail, password); // Use localEmail instead of email
-      navigate("/account");
+      console.log("Logging in with email:", localEmail);
+      const user = await login(localEmail, password);
+      console.log("User data:", user);
+      if (user.isadmin) {
+        console.log("User is admin, navigating to /AdminAccount");
+        navigate("/AdminAccount");
+      } else {
+        console.log("User is not admin, navigating to /account");
+        navigate("/account");
+      }
     } catch (error) {
+      console.error("Error logging in:", error);
       setError(error.message);
     }
   };
-
-  // useEffect hook to handle redirection after user data is updated
-  useEffect(() => {
-    if (user) {
-      if (user.isadmin) {
-        navigate("/AdminAccount");
-      } else {
-        navigate("/account");
-      }
-    }
-  }, [user, navigate]); // Add navigate to the dependency array
 
   // Render the login form
   return (

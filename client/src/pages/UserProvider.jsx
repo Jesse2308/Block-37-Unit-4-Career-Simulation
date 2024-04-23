@@ -29,9 +29,12 @@ export const UserProvider = ({ children }) => {
 
     const data = await response.json();
 
-    if (data && data.token) {
-      localStorage.setItem("token", data.token);
-      return fetchUser(); // Fetch user details after login
+    console.log("Response data:", data);
+
+    if (data && data.user && data.user.token) {
+      localStorage.setItem("token", data.user.token);
+      const user = await fetchUser(); // Fetch user details after login
+      return user; // Return the user data
     } else {
       throw new Error("No token received");
     }
@@ -49,18 +52,21 @@ export const UserProvider = ({ children }) => {
       }
 
       const data = await response.json();
-
-      if (data.userId) {
-        setUser({
-          id: data.userId,
-          email: data.email,
-          isadmin: data.isadmin,
-        });
+      console.log("Response data from /api/me:", data);
+      if (data.user && data.user.id) {
+        const user = {
+          id: data.user.id,
+          email: data.user.email,
+          isadmin: data.user.isadmin,
+        };
+        setUser(user);
+        return user; // Return the user data
       } else {
         throw new Error("User data is not available");
       }
     } catch (error) {
       setError(error.message);
+      throw error; // Re-throw the error
     } finally {
       setIsLoading(false);
     }
@@ -98,13 +104,46 @@ export const UserProvider = ({ children }) => {
         setError(error.message);
       });
   };
+
   const logout = () => {
     setUser(null);
     localStorage.removeItem("token");
   };
 
-  const updateCartOnServer = async (item) => {
-    console.log("Updating cart on server", item, user);
+  const addToCart = (product) => {
+    // Get the current cart from local storage
+    let cart = JSON.parse(localStorage.getItem("cart")) || [];
+
+    // If cart is not an array, initialize it as an empty array
+    if (!Array.isArray(cart)) {
+      cart = [];
+    }
+
+    // Find the item in the cart
+    let item = cart.find((item) => item.product_id === product.id);
+
+    if (item) {
+      // If the item exists, increment the quantity
+      item.quantity++;
+    } else {
+      // If the item doesn't exist, add it to the cart
+      cart.push({ product_id: product.id, quantity: 1 });
+    }
+
+    // Save the updated cart back to local storage
+    localStorage.setItem("cart", JSON.stringify(cart));
+
+    // Update the state of the cart
+    setCart(cart);
+
+    // If the user is logged in, update the cart on the server
+    if (user) {
+      updateCartOnServer(product.id, item ? item.quantity : 1);
+    }
+  };
+
+  const updateCartOnServer = async (product_id, quantity) => {
+    console.log("Updating cart on server", product_id, user);
     if (!user) {
       console.error("User is not logged in");
       return;
@@ -115,32 +154,30 @@ export const UserProvider = ({ children }) => {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(item),
+        body: JSON.stringify({ product_id, quantity }),
       });
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      const updatedCart = await response.json();
+      const serverResponse = await response.json();
+
+      console.log("Server response:", serverResponse);
+
+      let updatedCart;
+      if (cart.some((item) => item.product_id === product_id)) {
+        updatedCart = cart.map((item) =>
+          item.product_id === product_id ? serverResponse : item
+        );
+      } else {
+        updatedCart = cart.concat(serverResponse);
+      }
+
       setCart(updatedCart);
+      localStorage.setItem("cart", JSON.stringify(updatedCart));
     } catch (error) {
-      console.error(`Error adding item to cart: ${error}`);
-    }
-  };
-
-  const addToCart = (product) => {
-    const newItem = { product_id: product.id, quantity: 1 };
-    const existingItem = cart.find((item) => item.product_id === product.id);
-
-    if (existingItem) {
-      existingItem.quantity += 1;
-    } else {
-      setCart((prevCart) => [...prevCart, newItem]);
-    }
-
-    if (user) {
-      updateCartOnServer(newItem);
+      console.error("Error updating cart on server:", error);
     }
   };
 
@@ -155,13 +192,30 @@ export const UserProvider = ({ children }) => {
     }
   };
 
-  const removeFromCart = (product_id) => {
+  const removeFromCart = async (product_id) => {
     const updatedCart = cart.filter((item) => item.product_id !== product_id);
     setCart(updatedCart);
 
     if (user) {
-      const item = { product_id, quantity: 0 };
-      updateCartOnServer(item);
+      try {
+        const response = await fetch(
+          `${BASE_URL}/api/users/${user.id}/cart/${product_id}`,
+          {
+            method: "DELETE",
+            headers: {
+              "Content-Type": "application/json",
+            },
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        console.log(`Product ${product_id} removed from server cart`);
+      } catch (error) {
+        console.error("Error removing item from server cart:", error);
+      }
     }
   };
 
@@ -202,6 +256,7 @@ export const UserProvider = ({ children }) => {
   }, []);
 
   useEffect(() => {
+    console.log("Cart updated:", cart);
     localStorage.setItem("cart", JSON.stringify(cart));
   }, [cart]);
 

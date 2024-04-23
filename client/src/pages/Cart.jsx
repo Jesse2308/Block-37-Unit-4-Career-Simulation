@@ -22,6 +22,9 @@ const Cart = () => {
     setTotalPrice(total.toFixed(2));
   }, [cart, products]);
 
+  if (!Array.isArray(cart)) {
+    return <p>Loading...</p>;
+  }
   return (
     <div className="cart">
       <h2 className="cart-title">Your Cart</h2>

@@ -52,8 +52,7 @@ cartRoutes.post("/users/:user_id/cart", async (req, res, next) => {
   res.status(201).json(newCartItem.rows[0]);
 });
 
-cartRoutes.delete(
-  "/users/:user_id/cart/:product_id",
+cartRoutes.delete("/users/:user_id/cart/:product_id",
   async (req, res, next) => {
     const { user_id, product_id } = req.params;
     if (isNaN(user_id) || isNaN(product_id)) {

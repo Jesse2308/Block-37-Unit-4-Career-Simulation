@@ -87,10 +87,10 @@ async function loginUser(req, res, next) {
 
         res.json({
           success: true,
-          userId: user.id,
-          token,
-          email: user.email,
-          isadmin: user.isadmin, // Include isadmin in the response
+          user: {
+            ...user,
+            token,
+          },
           message: "User logged in",
         });
       } else {
