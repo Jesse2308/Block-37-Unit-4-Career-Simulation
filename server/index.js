@@ -21,6 +21,7 @@ const productRoutes = require("./products");
 const orderRoutes = require("./orders");
 const cartRoutes = require("./Cart");
 const adminRoutes = require("./admin");
+const { create } = require("domain");
 
 // Create Express app
 const app = express();
@@ -92,8 +93,12 @@ const init = async () => {
 
   // Create the tables
   await createUserTable();
-  await createProductsTable(); // Changed from createProductTable to createProductsTable
+  await createProductsTable();
   console.log("Tables created");
+
+  // Create the admin user
+  await db.createAdminAccount();
+  console.log("Admin user created");
 
   // Start the app
   app.listen(PORT, () => console.log(`Listening on port ${PORT}`));

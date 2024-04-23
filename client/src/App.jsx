@@ -10,7 +10,6 @@ import {
   Cart,
   Checkout,
   ProductDetail,
-  Admin,
   UserProvider,
   AdminAccount,
 } from "./pages";
@@ -29,7 +28,6 @@ function App() {
         <Route path="/cart" element={<Cart />} />
         <Route path="/products/:id" element={<ProductDetail />} />
         <Route path="/checkout" element={<Checkout />} />
-        <Route path="/admin" element={<Admin />} />
         <Route path="/AdminAccount" element={<AdminAccount />} />
       </Routes>
     </UserProvider>

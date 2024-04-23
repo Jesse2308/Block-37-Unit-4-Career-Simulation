@@ -87,8 +87,12 @@ const Account = () => {
   };
 
   useEffect(fetchUserDetails, []);
-  useEffect(fetchUserOrders, [user]);
-  useEffect(fetchUserProducts, [user]);
+  useEffect(() => {
+    if (user) {
+      fetchUserOrders();
+      fetchUserProducts();
+    }
+  }, [user]);
 
   const handleUpdateAccount = async (event) => {
     event.preventDefault();

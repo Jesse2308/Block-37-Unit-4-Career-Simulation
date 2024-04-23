@@ -54,6 +54,31 @@ async function createUser({
   return result.rows[0];
 }
 
+async function createAdminAccount() {
+  try {
+    // Check if the admin account already exists
+    const admin = await getUserByEmail("admin@example.com");
+    if (admin) {
+      console.log("Admin account already exists");
+      return;
+    }
+
+    // If not, create the admin account
+    await createUser({
+      username: "admin",
+      email: process.env.EMAIL_USER,
+      password: process.env.EMAIL_PASS,
+      is_guest: false,
+      emailtoken: null,
+      verified: true,
+      accounttype: "admin",
+      isadmin: true,
+    });
+  } catch (error) {
+    console.error("Error creating admin account:", error);
+  }
+}
+
 // Register a new user
 const register = async ({ email, password, isadmin = false }) => {
   // Check if a user with the given email already exists
@@ -261,6 +286,7 @@ const assignCartToUser = async (user, cart) => {
 
   return result.rows[0]; // Return the updated cart
 };
+
 // Define an async function to add products
 async function addProducts() {
   await addProduct(
@@ -356,4 +382,7 @@ module.exports = {
   assignCartToUser,
   fetchAllUsers,
   getUserByEmail,
+  createAdminAccount,
+  getUserByEmail,
+  createUser,
 };

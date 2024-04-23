@@ -34,7 +34,9 @@ const SELECT_ITEMS_FOR_CART = `
 `;
 
 cartRoutes.post("/users/:user_id/cart", async (req, res, next) => {
-  const { user_id, product_id, quantity } = req.params;
+  const user_id = req.params.user_id;
+  const { product_id, quantity } = req.body;
+
   if (isNaN(user_id) || isNaN(product_id) || isNaN(quantity)) {
     return res.status(400).send({
       success: false,

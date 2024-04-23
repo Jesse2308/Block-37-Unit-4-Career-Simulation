@@ -12,16 +12,15 @@ const Login = () => {
 
   const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    login(localEmail, password).catch(setError);
-  };
-
-  useEffect(() => {
-    if (user) {
-      navigate(user.isadmin ? "/AdminAccount" : "/account");
+    try {
+      await login(localEmail, password); // Use localEmail instead of email
+      navigate("/account");
+    } catch (error) {
+      setError(error.message);
     }
-  }, [user]);
+  };
 
   // useEffect hook to handle redirection after user data is updated
   useEffect(() => {
@@ -32,7 +31,7 @@ const Login = () => {
         navigate("/account");
       }
     }
-  }, [user]);
+  }, [user, navigate]); // Add navigate to the dependency array
 
   // Render the login form
   return (
@@ -68,10 +67,6 @@ const Login = () => {
           {isLoading ? "Loading..." : "Login"}
         </button>
       </form>
-      {/* Temporary button to test navigate
-      <button onClick={() => navigate("/AdminAccount")}>
-        Test navigate to AdminAccount
-      </button> */}
     </div>
   );
 };

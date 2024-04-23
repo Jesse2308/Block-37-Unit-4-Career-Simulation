@@ -52,6 +52,16 @@ const AdminAccount = () => {
 
   const handleAddProduct = async (newProduct) => {
     try {
+      const token = localStorage.getItem("token");
+
+      // Decode the token to get the user's role
+      const userRole = JSON.parse(atob(token.split(".")[1])).role;
+
+      // Only allow the user to add a product if they are an admin
+      if (userRole !== "admin") {
+        throw new Error("Only admins can add products");
+      }
+
       const response = await fetch(`${BASE_URL}/api/admin/products`, {
         method: "POST",
         headers: {

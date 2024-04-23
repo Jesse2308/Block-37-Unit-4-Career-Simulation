@@ -6,56 +6,42 @@ const BASE_URL = "http://localhost:3000";
 
 export const UserProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [cart, setCart] = useState([]);
   const [products, setProducts] = useState([]);
+  const [token, setToken] = useState(null);
 
-  // Fetch user details and update user state
-  useEffect(() => {
-    const token = localStorage.getItem("token");
+  const setCurrentUser = (userData) => {
+    setUser(userData);
+  };
 
-    if (!token) {
-      setError("No token found");
-      setIsLoading(false);
-      return;
+  const login = async (email, password) => {
+    const response = await fetch(`${BASE_URL}/api/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
 
-    fetch(`${BASE_URL}/api/me`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return response.json();
-      })
-      .then((data) => {
-        if (data && data.user) {
-          setUser(data.user);
-        } else {
-          setError("User not found");
-          setIsLoading(false);
-        }
-      })
-      .catch((error) => {
-        setError(error.message);
-        setIsLoading(false);
-      });
-  }, []);
+    const data = await response.json();
 
-  const login = async (username, password) => {
+    if (data && data.token) {
+      localStorage.setItem("token", data.token);
+      return fetchUser(); // Fetch user details after login
+    } else {
+      throw new Error("No token received");
+    }
+  };
+
+  const fetchUser = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch(`${BASE_URL}/api/login`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email: username,
-          password: password,
-        }),
+      const response = await fetch(`${BASE_URL}/api/me`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
       });
 
       if (!response.ok) {
@@ -70,8 +56,6 @@ export const UserProvider = ({ children }) => {
           email: data.email,
           isadmin: data.isadmin,
         });
-
-        // ... other state updates and function calls ...
       } else {
         throw new Error("User data is not available");
       }
@@ -114,8 +98,13 @@ export const UserProvider = ({ children }) => {
         setError(error.message);
       });
   };
+  const logout = () => {
+    setUser(null);
+    localStorage.removeItem("token");
+  };
 
   const updateCartOnServer = async (item) => {
+    console.log("Updating cart on server", item, user);
     if (!user) {
       console.error("User is not logged in");
       return;
@@ -234,6 +223,10 @@ export const UserProvider = ({ children }) => {
         buyNow,
         removeFromCart,
         changeQuantity,
+        logout,
+        setToken,
+        fetchUser,
+        setCurrentUser,
       }}
     >
       {children}

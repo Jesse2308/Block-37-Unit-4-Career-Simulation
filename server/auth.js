@@ -2,7 +2,7 @@ const express = require("express");
 const { client, getUserById, getUserByEmail } = require("./db");
 const { authenticateUser, generateToken } = require("./authHelpers");
 const jwt = require("jsonwebtoken");
-
+const bcrypt = require("bcrypt");
 const authRoutes = express.Router();
 
 authRoutes.post("/register", registerUser);
@@ -73,35 +73,33 @@ async function registerUser(req, res, next) {
 
 // Login a user
 async function loginUser(req, res, next) {
-  async function loginUser(req, res, next) {
-    const { email, password } = req.body;
-    if (!email || !password) {
-      res
-        .status(400)
-        .send({ success: false, message: "Missing required fields" });
-      return;
-    } else {
-      try {
-        const user = await authenticateUser(email, password);
-        if (user) {
-          const token = generateToken(user);
+  const { email, password } = req.body;
+  if (!email || !password) {
+    res
+      .status(400)
+      .send({ success: false, message: "Missing required fields" });
+    return;
+  } else {
+    try {
+      const user = await authenticateUser(email, password);
+      if (user) {
+        const token = generateToken(user);
 
-          res.json({
-            success: true,
-            userId: user.id,
-            token,
-            email: user.email,
-            isadmin: user.isadmin, // Include isadmin in the response
-            message: "User logged in",
-          });
-        } else {
-          res
-            .status(401)
-            .send({ success: false, message: "Invalid credentials" });
-        }
-      } catch (error) {
-        next(error);
+        res.json({
+          success: true,
+          userId: user.id,
+          token,
+          email: user.email,
+          isadmin: user.isadmin, // Include isadmin in the response
+          message: "User logged in",
+        });
+      } else {
+        res
+          .status(401)
+          .send({ success: false, message: "Invalid credentials" });
       }
+    } catch (error) {
+      next(error);
     }
   }
 }

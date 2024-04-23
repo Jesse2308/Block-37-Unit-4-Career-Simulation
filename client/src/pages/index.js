@@ -6,7 +6,6 @@ import Store from "./Store";
 import Cart from "./Cart";
 import Checkout from "./Checkout";
 import ProductDetail from "./ProductDetail";
-import Admin from "./Admin";
 import UserProvider from "./UserProvider";
 import AdminAccount from "./AdminAccount";
 import UserContext from "./UserProvider";
@@ -19,7 +18,6 @@ export {
   Cart,
   Checkout,
   ProductDetail,
-  Admin,
   UserProvider,
   AdminAccount,
   UserContext,
