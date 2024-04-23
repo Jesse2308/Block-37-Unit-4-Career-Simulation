@@ -57,46 +57,55 @@ const Checkout = () => {
     try {
       // Send the token to your server
       const { data: session } = await axios.post(
-        "http://localhost:5173/create-checkout-session",
+        "http://localhost:3000/api/create-checkout-session",
         {
           token: token.id,
         }
       );
       console.log("Session data:", session);
-      // Handle the session data...
+
+      // Redirect the user to the Stripe Checkout page
+      const result = await stripe.redirectToCheckout({
+        sessionId: session.id,
+      });
+
+      if (result.error) {
+        console.error("Error redirecting to checkout:", result.error.message);
+      }
     } catch (error) {
       console.error("Error in POST /create-checkout-session:", error);
-      // Handle the error...
     }
   };
 
   // Render the checkout form
   return (
-    <form onSubmit={handleSubmit} className="checkout-form">
-      <label>
-        Email
-        <input type="email" className="checkout-input" required />
-      </label>
-      <label>
-        Card information
-        <div id="card-element"></div>
-      </label>
-      <label>
-        Cardholder name
-        <input type="text" className="checkout-input" required />
-      </label>
-      <label>
-        Country or region
-        <input type="text" className="checkout-input" required />
-      </label>
-      <label>
-        ZIP
-        <input type="text" className="checkout-input" required />
-      </label>
-      <button type="submit" className="checkout-button">
-        Checkout
-      </button>
-    </form>
+    <div className="checkout">
+      <form onSubmit={handleSubmit} className="checkout-form">
+        <label className="checkout-label">
+          Email
+          <input type="email" className="checkout-input" required />
+        </label>
+        <label className="checkout-label">
+          Card information
+          <div id="card-element" className="checkout-card-element"></div>
+        </label>
+        <label className="checkout-label">
+          Cardholder name
+          <input type="text" className="checkout-input" required />
+        </label>
+        <label className="checkout-label">
+          Country or region
+          <input type="text" className="checkout-input" required />
+        </label>
+        <label className="checkout-label">
+          ZIP
+          <input type="text" className="checkout-input" required />
+        </label>
+        <button type="submit" className="checkout-button">
+          Checkout
+        </button>
+      </form>
+    </div>
   );
 };
 

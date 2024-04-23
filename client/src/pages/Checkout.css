@@ -3,12 +3,12 @@
   flex-direction: column;
   align-items: center;
   padding: 20px;
-  background-color: #f8f8f8;
   border-radius: 8px;
-  box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
-  width: 100%;
-  max-width: 400px;
-  margin: 0 auto;
+  width: 200%;
+  max-width: 200%;
+  margin: 2rem auto;
+  border: 1px solid #ccc;
+  background-color: #f9f9f9;
 }
 
 .checkout-form label {
@@ -33,6 +33,12 @@
   color: #333;
   background-color: #fff;
   box-sizing: border-box;
+  transition: border-color 0.3s ease;
+}
+
+.checkout-form .checkout-input:focus,
+.checkout-form #card-element:focus {
+  border-color: #007bff;
 }
 
 .checkout-form .checkout-button {
@@ -45,6 +51,8 @@
   cursor: pointer;
   font-size: 16px;
   margin-top: 20px;
+  margin-bottom: 20px;
+  transition: background-color 0.3s ease;
 }
 
 .checkout-form .checkout-button:hover {
