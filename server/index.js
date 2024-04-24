@@ -77,7 +77,7 @@ const init = async () => {
     res.sendFile(path.join(__dirname, "../client/dist/index.html"))
   );
   app.use(express.static(path.join(__dirname, "../client/dist")));
-
+  app.use(express.static("assets"));
   app.use(express.json());
 
   // Use route files as middleware
