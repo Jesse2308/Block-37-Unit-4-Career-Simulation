@@ -1,14 +1,7 @@
 const express = require("express");
 const jwt = require("jsonwebtoken");
 const adminRoutes = express.Router();
-const {
-  client,
-  fetchProducts,
-  getUserById,
-  fetchAllUsers,
-  getUserByEmail,
-  createUser,
-} = require("./db");
+const { client, fetchProducts, getUserById, fetchAllUsers } = require("./db");
 
 async function isAdmin(req, res, next) {
   try {

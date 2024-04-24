@@ -1,7 +1,6 @@
 // Dependencies
 const pg = require("pg");
 const bcrypt = require("bcrypt");
-const nodemailer = require("nodemailer");
 const jwt = require("jsonwebtoken");
 const { Pool } = pg;
 
@@ -97,25 +96,6 @@ const register = async ({ email, password, isadmin = false }) => {
 
   // If not, insert the new user
   const user = await createUser({ email, password, isadmin });
-
-  // Send a verification email
-  const transporter = nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 587,
-    secure: false, // true for 465, false for other ports
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
-    },
-  });
-  const mailOptions = {
-    from: process.env.EMAIL_USER,
-    to: user.email,
-    subject: "Email Verification",
-    text: `Please verify your email address by clicking the following link: http://localhost:3000/verify-email?token=${user.emailToken}`,
-  };
-  await transporter.sendMail(mailOptions);
-
   return user;
 };
 

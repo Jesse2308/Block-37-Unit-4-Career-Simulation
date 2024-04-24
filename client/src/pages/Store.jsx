@@ -49,7 +49,7 @@ const Store = () => {
         placeholder="Search products"
         value={searchTerm}
         onChange={handleSearchChange}
-        className="search-input" // Added class name
+        className="search-input"
       />
       <select
         value={sortOrder}
@@ -74,7 +74,7 @@ const Store = () => {
               product={product}
               handleAddToCart={() => addToCart(product)}
               buyNow={buyNow}
-              className="product-item" // Added class name
+              className="product-item"
             />
             <Link
               to={`/products/${product.id}`}

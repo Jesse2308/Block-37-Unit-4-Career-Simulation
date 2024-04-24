@@ -15,59 +15,60 @@ module.exports = authRoutes;
 // Register a new user
 async function registerUser(req, res, next) {
   const { email, password, accountType } = req.body;
+
   if (!email || !password) {
-    res
+    return res
       .status(400)
-      .send({ success: false, message: "Missing required fields" });
-    return;
-  } else {
-    try {
-      // Check if the user already exists
-      const existingUser = await getUserByEmail(email);
-      if (existingUser) {
-        return res.status(400).json({ message: "User already exists" });
-      }
+      .json({ success: false, message: "Missing required fields" });
+  }
 
-      // Begin a transaction
-      await client.query("BEGIN");
-
-      // Hash the password
-      const hashedPassword = await bcrypt.hash(password, 10);
-
-      const SQL = `
-            INSERT INTO users (email, password, accountType)
-            VALUES ($1, $2, $3)
-            RETURNING *;
-            `;
-      const response = await client.query(SQL, [
-        email,
-        hashedPassword,
-        accountType,
-      ]);
-      const user = response.rows[0];
-
-      // After creating the user, also create a new cart for the user
-      const SQL_CART = `
-        INSERT INTO cart (user_id)
-        VALUES ($1)
-        RETURNING *;
-      `;
-      await client.query(SQL_CART, [user.id]);
-
-      // Generate a token
-      const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, {
-        expiresIn: "1h",
-      });
-
-      // If everything is successful, commit the transaction
-      await client.query("COMMIT");
-
-      res.send({ success: true, user, token });
-    } catch (error) {
-      // If there's an error, rollback the transaction
-      await client.query("ROLLBACK");
-      next(error);
+  try {
+    // Check if the user already exists
+    const existingUser = await getUserByEmail(email);
+    if (existingUser) {
+      return res.status(400).json({ message: "User already exists" });
     }
+
+    // Begin a transaction
+    await client.query("BEGIN");
+
+    // Hash the password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Insert the new user into the database
+    const userSQL = `
+      INSERT INTO users (email, password, accountType)
+      VALUES ($1, $2, $3)
+      RETURNING *;
+    `;
+    const userResponse = await client.query(userSQL, [
+      email,
+      hashedPassword,
+      accountType,
+    ]);
+    const user = userResponse.rows[0];
+
+    // Create a new cart for the user
+    const cartSQL = `
+      INSERT INTO cart (user_id)
+      VALUES ($1)
+      RETURNING *;
+    `;
+    await client.query(cartSQL, [user.id]);
+
+    // Generate a token
+    const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, {
+      expiresIn: "1h",
+    });
+
+    // Commit the transaction
+    await client.query("COMMIT");
+
+    res.json({ success: true, user, token });
+  } catch (error) {
+    // Rollback the transaction in case of error
+    await client.query("ROLLBACK");
+    next(error);
   }
 }
 
