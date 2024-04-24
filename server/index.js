@@ -78,7 +78,9 @@ const init = async () => {
   );
   app.use(express.static(path.join(__dirname, "../client/dist")));
   app.use(express.static("assets"));
+
   app.use(express.json());
+  app.use(express.urlencoded({ extended: true }));
 
   // Use route files as middleware
   app.use("/api", authRoutes);
