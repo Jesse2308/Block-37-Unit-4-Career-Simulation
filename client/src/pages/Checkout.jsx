@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useState, useEffect } from "react";
 import { loadStripe } from "@stripe/stripe-js";
 import axios from "axios";
 import "./Checkout.css";
@@ -10,14 +10,15 @@ const stripePromise = loadStripe(
 
 // Checkout component for the checkout form
 const Checkout = () => {
-  let card;
+  const [card, setCard] = useState(null);
 
   useEffect(() => {
     const setupStripe = async () => {
       const stripe = await stripePromise;
       const elements = stripe.elements();
+
       // Create a card element
-      card = elements.create("card", {
+      const cardElement = elements.create("card", {
         style: {
           base: {
             color: "#32325d",
@@ -34,8 +35,12 @@ const Checkout = () => {
           },
         },
       });
+
       // Mount the card element to the DOM
-      card.mount("#card-element");
+      cardElement.mount("#card-element");
+
+      // Update the card state
+      setCard(cardElement);
     };
 
     setupStripe();
