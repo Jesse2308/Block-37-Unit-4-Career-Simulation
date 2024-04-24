@@ -4,8 +4,6 @@ const { authenticateUser, generateToken } = require("./authHelpers");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
 const authRoutes = express.Router();
-const app = express();
-app.use(express.json());
 
 authRoutes.post("/register", registerUser);
 authRoutes.post("/login", loginUser);

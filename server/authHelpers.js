@@ -1,8 +1,6 @@
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const { client } = require("./db");
-const app = express();
-app.use(express.json());
 
 async function authenticateUser(email, password) {
   // SQL query to find the user with the given email
@@ -37,11 +35,6 @@ function generateToken(user) {
   // Generate and return the token
   return jwt.sign(payload, secret, options);
 }
-
-authRoutes.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).send({ message: "An error occurred" });
-});
 
 module.exports = {
   authenticateUser,
