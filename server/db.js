@@ -74,8 +74,13 @@ async function createAdminAccount() {
       accounttype: "admin",
       isadmin: true,
     });
+    console.log("Admin user created");
   } catch (error) {
-    console.error("Error creating admin account:", error);
+    if (error.code === "23505") {
+      console.log("Admin account already exists");
+    } else {
+      console.error("Error creating admin account:", error);
+    }
   }
 }
 
