@@ -2,6 +2,8 @@ const express = require("express");
 const jwt = require("jsonwebtoken");
 const adminRoutes = express.Router();
 const { client, fetchProducts, getUserById, fetchAllUsers } = require("./db");
+const app = express();
+app.use(express.json());
 
 async function isAdmin(req, res, next) {
   try {
@@ -130,6 +132,11 @@ adminRoutes.delete("/products/:id", isAdmin, async (req, res) => {
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
+});
+
+adminRoutes.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).send({ message: "An error occurred" });
 });
 
 module.exports = adminRoutes;

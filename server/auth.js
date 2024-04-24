@@ -4,6 +4,8 @@ const { authenticateUser, generateToken } = require("./authHelpers");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
 const authRoutes = express.Router();
+const app = express();
+app.use(express.json());
 
 authRoutes.post("/register", registerUser);
 authRoutes.post("/login", loginUser);
@@ -11,6 +13,11 @@ authRoutes.get("/me", getCurrentUser);
 authRoutes.put("/user", updateUserDetails);
 
 module.exports = authRoutes;
+
+authRoutes.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).send({ message: "An error occurred" });
+});
 
 // Register a new user
 async function registerUser(req, res, next) {

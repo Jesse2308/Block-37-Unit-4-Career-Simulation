@@ -1,6 +1,8 @@
 const express = require("express");
 const cartRoutes = express.Router();
 const { client } = require("./db");
+const app = express();
+app.use(express.json());
 
 const INSERT_INTO_CART = `
   INSERT INTO cart_item (cart_id, product_id, quantity)
@@ -52,7 +54,8 @@ cartRoutes.post("/users/:user_id/cart", async (req, res, next) => {
   res.status(201).json(newCartItem.rows[0]);
 });
 
-cartRoutes.delete("/users/:user_id/cart/:product_id",
+cartRoutes.delete(
+  "/users/:user_id/cart/:product_id",
   async (req, res, next) => {
     const { user_id, product_id } = req.params;
     if (isNaN(user_id) || isNaN(product_id)) {
@@ -137,6 +140,11 @@ cartRoutes.get("/cart_items/:cart_id", async (req, res, next) => {
   }
 
   res.status(200).json(rows);
+});
+
+cartRoutes.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).send({ message: "An error occurred" });
 });
 
 module.exports = cartRoutes;
