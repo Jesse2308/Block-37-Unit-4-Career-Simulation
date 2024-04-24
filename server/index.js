@@ -25,7 +25,7 @@ module.exports = app;
 // Define the allowed origins
 const allowedOrigins = [
   "http://localhost:3000",
-  "http://your-production-url.com",
+  "https://block-37-unit-4-career-simulation-ablg.onrender.com/",
   "http://localhost:5173",
 ];
 
