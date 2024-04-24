@@ -10,7 +10,7 @@ export const UserProvider = ({ children }) => {
   const [error, setError] = useState(null);
   const [cart, setCart] = useState([]);
   const [products, setProducts] = useState([]);
-  const [token, setToken] = useState(null);
+  const [setToken] = useState(null);
 
   const setCurrentUser = (userData) => {
     setUser(userData);

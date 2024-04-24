@@ -4,9 +4,6 @@ require("dotenv").config();
 // Import dependencies
 const express = require("express");
 const cors = require("cors");
-const jwt = require("jsonwebtoken");
-const bcrypt = require("bcrypt");
-const crypto = require("crypto");
 const path = require("path");
 
 // Import database functions and setup
@@ -20,7 +17,6 @@ const productRoutes = require("./products");
 const orderRoutes = require("./orders");
 const cartRoutes = require("./Cart");
 const adminRoutes = require("./admin");
-const { create } = require("domain");
 
 // Create Express app
 const app = express();
