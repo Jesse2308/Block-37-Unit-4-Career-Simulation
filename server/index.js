@@ -15,7 +15,7 @@ const authRoutes = require("./auth");
 const stripeRoutes = require("./stripeRoutes");
 const productRoutes = require("./products");
 const orderRoutes = require("./orders");
-const cartRoutes = require("./cart");
+const cartRoutes = require("./Cart");
 const adminRoutes = require("./admin");
 
 // Create Express app
