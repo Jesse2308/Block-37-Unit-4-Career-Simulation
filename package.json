@@ -5,7 +5,8 @@
   "main": "server.js",
   "scripts": {
     "start:dev": "nodemon server",
-    "build": "vite build"
+    "build": "vite build",
+    "postinstall": "npm rebuild bcrypt --build-from-source"
   },
   "keywords": [],
   "author": "",
