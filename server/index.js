@@ -68,7 +68,7 @@ const init = async () => {
   app.use((req, res, next) => {
     res.setHeader(
       "Content-Security-Policy",
-      "script-src 'self' https://js.stripe.com; img-src 'self' https://q.stripe.com data: https://shorturl.at/cpJWX https://shorturl.at/bL359 https://shorturl.at/qrvE8 https://shorturl.at/ilrGV https://shorturl.at/uwNOX https://shorturl.at/cstU5 https://shorturl.at/iruU8 https://shorturl.at/lmEGX https://tinyurl.com/24o53crt https://m.stripe.network https://m.stripe.com https://b.stripecdn.com"
+      "script-src 'self' https://js.stripe.com; img-src 'self' https://q.stripe.com data: https://shorturl.at/cpJWX https://shorturl.at/bL359 https://shorturl.at/qrvE8 https://shorturl.at/ilrGV https://shorturl.at/uwNOX https://shorturl.at/cstU5 https://shorturl.at/iruU8 https://shorturl.at/lmEGX https://tinyurl.com/24o53crt https://m.stripe.network https://m.stripe.com https://b.stripecdn.com https://shorturl.at/bpsK4 https://shorturl.at/osWX4"
     );
     next();
   });
